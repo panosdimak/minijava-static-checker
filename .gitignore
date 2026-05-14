@@ -1,0 +1,19 @@
+*.jar
+minijava.jj
+
+# JTB output
+minijava-jtb.jj
+syntaxtree/
+visitor/
+
+# JavaCC output
+MiniJavaParser.java
+MiniJavaParserTokenManager.java
+MiniJavaParserConstants.java
+Token.java
+TokenMgrError.java
+ParseException.java
+JavaCharStream.java
+
+# javac output
+*.class
