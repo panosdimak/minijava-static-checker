@@ -17,6 +17,9 @@ public class Main {
 
             Goal root = parser.Goal();
 
+            STBuilder stb = new STBuilder();
+            root.accept(stb);
+
             System.err.println("Program parsed successfully.");
         }
         catch(ParseException ex){
