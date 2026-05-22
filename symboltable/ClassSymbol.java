@@ -22,4 +22,13 @@ public class ClassSymbol {
 		}
 		return classType;
 	}
+
+	public void addField(String name, String typeName) throws SemanticError {
+		if (fields.containsKey(name)) {
+			throw new SemanticError("duplicate field " + name);
+		}
+
+		VarSymbol vs = new VarSymbol(name, typeName);
+		fields.put(name, vs);
+	}
 }
