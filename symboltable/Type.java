@@ -1,34 +1,54 @@
 package symboltable;
 
-import symboltable.ClassSymbol;
+public abstract class Type {
+	public final String name;
 
-abstract class Type {
-	String name;
-	abstract boolean isAssignableFrom(Type other);
+	Type(String n) {
+		this.name = n;
+	}
+
+	public abstract boolean isAssignableFrom(Type other);
 }
 
 class IntType extends Type {
-	boolean isAssignableFrom(Type other) {
-		return this == other;
+	IntType() {
+		super("int");
+	}
+
+	public boolean isAssignableFrom(Type other) {
+		return (other instanceof IntType);
 	}
 }
 
 class BooleanType extends Type {
-	boolean isAssignableFrom(Type other) {
-		return this == other;
+	BooleanType() {
+		super("boolean");
+	}
+
+	public boolean isAssignableFrom(Type other) {
+		return (other instanceof BooleanType);
 	}
 }
 
 class IntArrayType extends Type {
-	boolean isAssignableFrom(Type other) {
-		return this == other;
+	IntArrayType() {
+		super("int[]");
+	}
+
+	public boolean isAssignableFrom(Type other) {
+		return (other instanceof IntArrayType);
 	}
 }
 
 class ClassType extends Type {
-	ClassSymbol classSymbol;
+	final ClassSymbol classSymbol;
 
-	boolean isAssignableFrom(Type other) {
+	ClassType(ClassSymbol c) {
+		super(c.name);
+		this.classSymbol = c;
+	}
+
+	public boolean isAssignableFrom(Type other) {
 		if (!(other instanceof ClassType ct)) return false;
 
 		ClassSymbol target = ct.classSymbol;
