@@ -16,7 +16,7 @@ all: compile
 compile: $(JTB_JAR) $(JAVACC_JAR) $(GRAMMAR)
 	java -jar $(JTB_JAR) -te $(GRAMMAR)
 	java -jar $(JAVACC_JAR) $(JTB_OUT)
-	javac Main.java
+	javac symboltable/*.java STBuilder.java Main.java
 
 $(JTB_JAR):
 	$(CURL) -o $@ $(JTB_URL)
@@ -28,7 +28,8 @@ $(GRAMMAR):
 	$(CURL) -o $@ $(GRAMMAR_URL)
 
 clean:
-	rm -rf *.class syntaxtree visitor $(JTB_OUT)
+	find . -name '*.class' -delete
+	rm -rf syntaxtree visitor $(JTB_OUT)
 
 fetchclean: clean
 	rm -f $(JTB_JAR) $(JAVACC_JAR) $(GRAMMAR)
