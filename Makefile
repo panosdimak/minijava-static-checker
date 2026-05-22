@@ -16,7 +16,7 @@ all: compile
 compile: $(JTB_JAR) $(JAVACC_JAR) $(GRAMMAR)
 	java -jar $(JTB_JAR) -te $(GRAMMAR)
 	java -jar $(JAVACC_JAR) $(JTB_OUT)
-	javac symboltable/*.java STBuilder.java Main.java
+	javac *.java syntaxtree/*.java visitor/*.java symboltable/*.java
 
 $(JTB_JAR):
 	$(CURL) -o $@ $(JTB_URL)
