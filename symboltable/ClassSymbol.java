@@ -1,6 +1,7 @@
 package symboltable;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -30,5 +31,25 @@ public class ClassSymbol {
 
 		VarSymbol vs = new VarSymbol(name, typeName);
 		fields.put(name, vs);
+	}
+
+	public void addMethod(String name, String returnTypeName, List<VarSymbol> params) throws SemanticError {
+		MethodSymbol newMethod = new MethodSymbol(this, name, returnTypeName);
+		for (VarSymbol param : params) {
+			newMethod.paramList.add(param.typeName);
+		}
+
+		if (methods.containsKey(name)) {
+			for (MethodSymbol method : methods.get(name)) {
+				if (method.paramList.equals(newMethod.paramList)) {
+					throw new SemanticError("duplicate method " + name);
+				}
+			}
+			methods.get(name).add(newMethod);
+		} else {
+			List<MethodSymbol> list = new ArrayList<>();
+			list.add(newMethod);
+			methods.put(name, list);
+		}
 	}
 }
