@@ -1,40 +1,37 @@
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
+import symboltable.SemanticError;
 import syntaxtree.*;
 
 public class Main {
- public static void main(String[] args) throws Exception {
-        if(args.length != 1){
-            System.err.println("Usage: java Main <inputFile>");
-            System.exit(1);
-        }
 
-        FileInputStream fis = null;
-        try{
-            fis = new FileInputStream(args[0]);
-            MiniJavaParser parser = new MiniJavaParser(fis);
+	public static void main(String[] args) {
+		if (args.length < 1) {
+			System.err.println("Usage: java Main <inputFile>");
+			System.exit(1);
+		}
 
-            Goal root = parser.Goal();
+		for (String path : args) {
+			System.err.println("=== " + path + " ===");
 
-            STBuilder stb = new STBuilder();
-            root.accept(stb);
+			try (FileInputStream fis = new FileInputStream(path)) {
+				MiniJavaParser parser = new MiniJavaParser(fis);
 
-            System.err.println("Program parsed successfully.");
-        }
-        catch(ParseException ex){
-            System.out.println(ex.getMessage());
-        }
-        catch(FileNotFoundException ex){
-            System.err.println(ex.getMessage());
-        }
-        finally{
-            try{
-                if(fis != null) fis.close();
-            }
-            catch(IOException ex){
-                System.err.println(ex.getMessage());
-            }
-        }
- 	}
+				Goal root = parser.Goal();
+
+				STBuilder stb = new STBuilder();
+				root.accept(stb);
+
+				System.err.println("Program parsed successfully.");
+			} catch (ParseException e) {
+				System.err.println(e.getMessage());
+			} catch (FileNotFoundException e) {
+				System.err.println(e.getMessage());
+			} catch (SemanticError e) {
+				System.err.println(e.getMessage());
+			} catch (Exception e) {
+				System.err.println(e.getMessage());
+			}
+		}
+	}
 }
