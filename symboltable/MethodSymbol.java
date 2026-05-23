@@ -18,4 +18,13 @@ public class MethodSymbol {
 		this.name = name;
 		this.returnTypeName = returnTypeName;
 	}
+
+	public void addLocal(String name, String typeName) throws SemanticError {
+		if (locals.containsKey(name)) {
+			throw new SemanticError("duplicate variable " + name);
+		}
+
+		VarSymbol newVar = new VarSymbol(name, typeName);
+		locals.put(name, newVar);
+	}
 }

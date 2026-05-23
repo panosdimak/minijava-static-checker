@@ -37,6 +37,7 @@ public class ClassSymbol {
 		MethodSymbol newMethod = new MethodSymbol(this, name, returnTypeName);
 		for (VarSymbol param : params) {
 			newMethod.paramList.add(param.typeName);
+			newMethod.addLocal(param.name, param.typeName);
 		}
 
 		if (methods.containsKey(name)) {
