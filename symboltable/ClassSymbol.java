@@ -33,7 +33,7 @@ public class ClassSymbol {
 		fields.put(name, vs);
 	}
 
-	public void addMethod(String name, String returnTypeName, List<VarSymbol> params) throws SemanticError {
+	public MethodSymbol addMethod(String name, String returnTypeName, List<VarSymbol> params) throws SemanticError {
 		MethodSymbol newMethod = new MethodSymbol(this, name, returnTypeName);
 		for (VarSymbol param : params) {
 			newMethod.paramList.add(param.typeName);
@@ -52,5 +52,7 @@ public class ClassSymbol {
 			list.add(newMethod);
 			methods.put(name, list);
 		}
+
+		return newMethod;
 	}
 }
