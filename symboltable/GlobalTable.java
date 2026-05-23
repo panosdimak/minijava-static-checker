@@ -7,7 +7,7 @@ public class GlobalTable {
 
 	private Map<String, ClassSymbol> classes = new LinkedHashMap<>();
 
-	public void addClass(String name, String parentName) throws SemanticError {
+	public ClassSymbol addClass(String name, String parentName) throws SemanticError {
 		if (classes.containsKey(name)) {
 			throw new SemanticError("duplicate class " + name);
 		}
@@ -19,6 +19,8 @@ public class GlobalTable {
 
 		ClassSymbol ct = new ClassSymbol(name, parent);
 		classes.put(name, ct);
+
+		return ct;
 	}
 
 	public ClassSymbol lookupClass(String name) {
