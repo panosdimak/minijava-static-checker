@@ -9,6 +9,9 @@ public class ClassSymbol {
 	String name;
 	ClassSymbol parent;
 	private ClassType classType = null;
+
+	MethodSymbol mainMethod = null;
+
 	Map<String, VarSymbol> fields = new LinkedHashMap<>();
 	Map<String, List<MethodSymbol>> methods = new LinkedHashMap<>();
 
@@ -31,6 +34,11 @@ public class ClassSymbol {
 
 		VarSymbol vs = new VarSymbol(name, typeName);
 		fields.put(name, vs);
+	}
+
+	public MethodSymbol setMainMethod() {
+		mainMethod = new MethodSymbol(this, "main", "void");
+		return mainMethod;
 	}
 
 	public MethodSymbol addMethod(String name, String returnTypeName, List<VarSymbol> params) throws SemanticError {

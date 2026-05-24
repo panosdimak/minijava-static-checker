@@ -48,10 +48,9 @@ class STBuilder extends DepthFirstVisitor {
 	public void visit(MainClass n) throws Exception {
 		String mainClassName = n.f1.f0.tokenImage;
 		ClassSymbol newClass = globalTable.addClass(mainClassName, null);
-		MethodSymbol mainMethod = new MethodSymbol(newClass, "main", "void");
 		System.out.println("Class: " + mainClassName);
 
-		currentMethod = mainMethod;
+		currentMethod = newClass.setMainMethod();
 		currentClass = newClass;
 
 		super.visit(n);

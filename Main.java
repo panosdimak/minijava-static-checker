@@ -1,5 +1,7 @@
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+
+import symboltable.STValidator;
 import symboltable.SemanticError;
 import syntaxtree.*;
 
@@ -21,6 +23,8 @@ public class Main {
 
 				STBuilder stb = new STBuilder();
 				root.accept(stb);
+
+				new STValidator().resolveTypes(stb.globalTable);
 
 				System.err.println("Program parsed successfully.");
 			} catch (ParseException e) {
