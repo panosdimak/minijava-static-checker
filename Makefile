@@ -1,7 +1,11 @@
-JTB_JAR     := jtb133di.jar
-JAVACC_JAR  := javacc5.jar
-GRAMMAR     := minijava.jj
-JTB_OUT     := minijava-jtb.jj
+JTB_JAR      := jtb133di.jar
+JAVACC_JAR   := javacc5.jar
+GRAMMAR      := minijava.jj
+JTB_OUT      := minijava-jtb.jj
+JTB_OUT_DIRS := syntaxtree visitor
+JAVACC_OUT   := MiniJavaParser.java MiniJavaParserTokenManager.java \
+                MiniJavaParserConstants.java Token.java TokenMgrError.java \
+                ParseException.java JavaCharStream.java
 
 JTB_URL     := https://cgi.di.uoa.gr/~compilers/tools/jtb133di.jar
 JAVACC_URL  := https://cgi.di.uoa.gr/~compilers/tools/javacc5.jar
@@ -29,7 +33,7 @@ $(GRAMMAR):
 
 clean:
 	find . -name '*.class' -delete
-	rm -rf syntaxtree visitor $(JTB_OUT)
+	rm -rf $(JTB_OUT) $(JTB_OUT_DIRS) $(JAVACC_OUT)
 
 fetchclean: clean
 	rm -f $(JTB_JAR) $(JAVACC_JAR) $(GRAMMAR)
