@@ -24,7 +24,10 @@ public class Main {
 				STBuilder stb = new STBuilder();
 				root.accept(stb);
 
-				new STValidator().resolveTypes(stb.globalTable);
+				STValidator stv = new STValidator();
+				stv.resolveTypes(stb.globalTable);
+				stv.checkOverloads(stb.globalTable);
+
 
 				System.err.println("Program parsed successfully.");
 			} catch (ParseException e) {
