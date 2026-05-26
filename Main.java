@@ -3,6 +3,7 @@ import java.io.FileNotFoundException;
 
 import symboltable.STValidator;
 import symboltable.SemanticError;
+import symboltable.OffsetPrinter;
 import syntaxtree.*;
 
 public class Main {
@@ -28,6 +29,7 @@ public class Main {
 				stv.resolveTypes(stb.globalTable);
 				stv.checkOverloads(stb.globalTable);
 
+				new OffsetPrinter().printOffsets(stb.globalTable);
 
 				System.err.println("Program parsed successfully.");
 			} catch (ParseException e) {

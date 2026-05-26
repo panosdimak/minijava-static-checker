@@ -14,6 +14,10 @@ public class ClassSymbol {
 
 	Map<String, VarSymbol> fields = new LinkedHashMap<>();
 	Map<String, List<MethodSymbol>> methods = new LinkedHashMap<>();
+	List<MethodSymbol> methodsInOrder = new ArrayList<>();
+
+	int fieldBlockSize = 0;
+	int vtableSize = 0;
 
 	public ClassSymbol(String name, ClassSymbol parent) {
 		this.name = name;
@@ -55,10 +59,12 @@ public class ClassSymbol {
 				}
 			}
 			methods.get(name).add(newMethod);
+			methodsInOrder.add(newMethod);
 		} else {
 			List<MethodSymbol> list = new ArrayList<>();
 			list.add(newMethod);
 			methods.put(name, list);
+			methodsInOrder.add(newMethod);
 		}
 
 		return newMethod;

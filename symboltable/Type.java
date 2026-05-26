@@ -8,6 +8,8 @@ public abstract class Type {
 	}
 
 	public abstract boolean isAssignableFrom(Type other);
+
+	public abstract int byteSize();
 }
 
 class IntType extends Type {
@@ -17,6 +19,10 @@ class IntType extends Type {
 
 	public boolean isAssignableFrom(Type other) {
 		return (other instanceof IntType);
+	}
+
+	public int byteSize() {
+	    return 4;
 	}
 }
 
@@ -28,6 +34,10 @@ class BooleanType extends Type {
 	public boolean isAssignableFrom(Type other) {
 		return (other instanceof BooleanType);
 	}
+
+	public int byteSize() {
+	    return 1;
+	}
 }
 
 class IntArrayType extends Type {
@@ -37,6 +47,10 @@ class IntArrayType extends Type {
 
 	public boolean isAssignableFrom(Type other) {
 		return (other instanceof IntArrayType);
+	}
+
+	public int byteSize() {
+	    return 8;
 	}
 }
 
@@ -57,5 +71,9 @@ class ClassType extends Type {
 			target = target.parent;
 		}
 		return false;
+	}
+
+	public int byteSize() {
+	    return 8;
 	}
 }

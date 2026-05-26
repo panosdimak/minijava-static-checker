@@ -48,7 +48,6 @@ class STBuilder extends DepthFirstVisitor {
 	public void visit(MainClass n) throws Exception {
 		String mainClassName = n.f1.f0.tokenImage;
 		ClassSymbol newClass = globalTable.addClass(mainClassName, null);
-		System.out.println("Class: " + mainClassName);
 
 		currentMethod = newClass.setMainMethod();
 		currentClass = newClass;
@@ -63,7 +62,6 @@ class STBuilder extends DepthFirstVisitor {
 	public void visit(ClassDeclaration n) throws Exception {
 		String className = n.f1.f0.tokenImage;
 		ClassSymbol newClass = globalTable.addClass(className, null);
-		System.out.println("Class: " + className);
 
 		currentClass = newClass;
 
@@ -78,7 +76,6 @@ class STBuilder extends DepthFirstVisitor {
 		String parentName = n.f3.f0.tokenImage;
 		ClassSymbol newClass = globalTable.addClass(className, parentName);
 
-		System.out.println("Class: " + className);
 
 		currentClass = newClass;
 
@@ -94,10 +91,8 @@ class STBuilder extends DepthFirstVisitor {
 
 		if (currentMethod == null) {
 			currentClass.addField(varName, varTypeName);
-			System.out.println("\tfield: " + varName);
 		} else {
 			currentMethod.addLocal(varName, varTypeName);
-			System.out.println("\t\tlocal: " + varName);
 		}
 
 	}
@@ -111,8 +106,6 @@ class STBuilder extends DepthFirstVisitor {
 
 		MethodSymbol newMethod = currentClass.addMethod(methodName, returnTypeName, params);
 		currentMethod = newMethod;
-
-		System.out.println("\tmethod: " + methodName);
 
 		super.visit(n);
 
