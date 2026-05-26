@@ -40,9 +40,9 @@ public class OffsetPrinter {
                 ClassSymbol c = method.ownerClass.parent;
                 boolean isOverride = false;
 
-                while (c != null) {
+                while (c != null && !isOverride) {
                     List<MethodSymbol> pMethods = c.methods.get(method.name);
-                    if (pMethods != null && !isOverride) {
+                    if (pMethods != null) {
                         for (MethodSymbol pMethod : pMethods) {
                             if (pMethod.paramList.equals(method.paramList)) {
                                 isOverride = true;
