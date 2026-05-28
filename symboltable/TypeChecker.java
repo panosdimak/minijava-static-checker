@@ -45,6 +45,22 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         return list;
     }
 
+    private Type resolveIdentifier(Identifier id, State state) throws Exception {
+        VarSymbol vs = state.currentMethod.locals.get(id.f0.tokenImage);
+        if (vs == null) {
+            for (ClassSymbol c = state.currentClass; c != null; c = c.parent) {
+                vs = c.fields.get(id.f0.tokenImage);
+                if (vs != null) {
+                    break;
+                }
+            }
+        }
+        if (vs == null) {
+            throw new SemanticError("undeclared identifier '" + id.f0.tokenImage + "'");
+        }
+        return vs.type;
+    }
+
     @Override
     public Type visit(MainClass n, State argu) throws Exception {
         ClassSymbol savedClass = argu.currentClass;
@@ -147,7 +163,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
     @Override
     public Type visit(ThisExpression n, State argu) throws Exception {
         if (argu.currentMethod == argu.currentClass.mainMethod) {
-            throw new SemanticError("cannot use this inside main");
+            throw new SemanticError("cannot use 'this' inside main");
         }
         return argu.currentClass.asType();
     }
@@ -158,21 +174,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             case IntegerLiteral il -> il.accept(this, argu);
             case TrueLiteral tl -> tl.accept(this, argu);
             case FalseLiteral fl -> fl.accept(this, argu);
-            case Identifier id -> {
-                VarSymbol vs = argu.currentMethod.locals.get(id.f0.tokenImage);
-                if (vs == null) {
-                    for (ClassSymbol c = argu.currentClass; c != null; c = c.parent) {
-                        vs = c.fields.get(id.f0.tokenImage);
-                        if (vs != null) {
-                            break;
-                        }
-                    }
-                }
-                if (vs == null) {
-                    throw new SemanticError("undeclared identifier " + id.f0.tokenImage);
-                }
-                yield vs.type;
-            }
+            case Identifier id -> resolveIdentifier(id, argu);
             case ThisExpression te -> te.accept(this, argu);
             case ArrayAllocationExpression ae -> ae.accept(this, argu);
             case AllocationExpression ae -> ae.accept(this, argu);
@@ -202,7 +204,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if (t instanceof BooleanType) {
             return new BooleanType();
         }
-        throw new SemanticError("operand of non-boolean type " + t.name + " not allowed in ! expression");
+        throw new SemanticError("operand of non-boolean type '" + t.name + "' not allowed in ! expression");
     }
 
     @Override
@@ -212,7 +214,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if ((t1 instanceof BooleanType) && (t2 instanceof BooleanType)) {
             return new BooleanType();
         }
-        throw new SemanticError("operands of && expression must be of boolean type, got " + t1.name + " and " + t2.name);
+        throw new SemanticError("operands of && expression must be of boolean type, got '" + t1.name + "' and '" + t2.name + "'");
     }
 
     @Override
@@ -222,7 +224,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
             return new BooleanType();
         }
-        throw new SemanticError("operands of < expression must be of int type, got " + t1.name + " and " + t2.name);
+        throw new SemanticError("operands of < expression must be of int type, got '" + t1.name + "' and '" + t2.name + "'");
     }
 
     @Override
@@ -232,7 +234,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
             return new IntType();
         }
-        throw new SemanticError("operands of + expression must be of int type, got " + t1.name + " and " + t2.name);
+        throw new SemanticError("operands of + expression must be of int type, got '" + t1.name + "' and '" + t2.name + "'");
     }
 
     @Override
@@ -242,7 +244,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
             return new IntType();
         }
-        throw new SemanticError("operands of - expression must be of int type, got " + t1.name + " and " + t2.name);
+        throw new SemanticError("operands of - expression must be of int type, got '" + t1.name + "' and '" + t2.name + "'");
     }
 
     @Override
@@ -252,7 +254,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
             return new IntType();
         }
-        throw new SemanticError("operands of * expression must be of int type, got " + t1.name + " and " + t2.name);
+        throw new SemanticError("operands of * expression must be of int type, got '" + t1.name + "' and '" + t2.name + "'");
     }
 
     @Override
@@ -262,7 +264,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if ((t1 instanceof IntArrayType) && (t2 instanceof IntType)) {
             return new IntType();
         }
-        throw new SemanticError("array in [] expression must be of int[] type and index must be of int type, got " + t1.name + " and " + t2.name);
+        throw new SemanticError("array in [] expression must be of int[] type and index must be of int type, got '" + t1.name + "' and '" + t2.name + "'");
     }
 
     @Override
@@ -271,7 +273,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if (t instanceof IntArrayType) {
             return new IntType();
         }
-        throw new SemanticError("operand of non-int[] type " + t.name + " not allowed in array length expression");
+        throw new SemanticError("operand of non-int[] type '" + t.name + "' not allowed in array length expression");
     }
 
     @Override
@@ -280,15 +282,77 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         if (t instanceof IntType) {
             return new IntArrayType();
         }
-        throw new SemanticError("expression in array allocation must be of type int, got " + t.name);
+        throw new SemanticError("expression in array allocation must be of type 'int', got '" + t.name + "'");
     }
 
     @Override
     public Type visit(AllocationExpression n, State argu) throws Exception {
         ClassSymbol c = globalTable.lookupClass(n.f1.f0.tokenImage);
         if (c == null) {
-            throw new SemanticError("undeclared class " + n.f1.f0.tokenImage + " cannot be used for new allocation");
+            throw new SemanticError("undeclared class '" + n.f1.f0.tokenImage + "' cannot be used for new allocation");
         }
         return c.asType();
+    }
+
+    @Override
+    public Type visit(AssignmentStatement n, State argu) throws Exception {
+        Type lt = resolveIdentifier(n.f0, argu);
+        Type rt = n.f2.accept(this, argu);
+        if (!lt.isAssignableFrom(rt)) {
+            throw new SemanticError("cannot assign '" + rt.name + "' to identifier '"
+                                    + n.f0.f0.tokenImage + "' of type '" + lt.name + "'");
+        }
+        return null;
+    }
+
+    @Override
+    public Type visit(ArrayAssignmentStatement n, State argu) throws Exception {
+        Type arrT = resolveIdentifier(n.f0, argu);
+        if (!(arrT instanceof IntArrayType)) {
+            throw new SemanticError("identifier '" + n.f0.f0.tokenImage + "' of type '" + arrT.name + "' cannot be indexed");
+        }
+        Type indexT = n.f2.accept(this, argu);
+        if (!(indexT instanceof IntType)) {
+            throw new SemanticError("index of array '" + n.f0.f0.tokenImage + "' must be of type 'int', got '" + indexT.name + "'");
+        }
+        Type rT = n.f5.accept(this, argu);
+        if (!(rT instanceof IntType)) {
+            throw new SemanticError("cannot assign '" + rT.name + "' to element of array '" + n.f0.f0.tokenImage + "' of type 'int'");
+        }
+
+        return null;
+    }
+
+    @Override
+    public Type visit(IfStatement n, State argu) throws Exception {
+        Type ifT = n.f2.accept(this, argu);
+        if (!(ifT instanceof BooleanType)) {
+            throw new SemanticError("expression in if statement must evaluate to a boolean, got '" + ifT.name + "'");
+        }
+        n.f4.accept(this, argu);
+        n.f6.accept(this, argu);
+
+        return null;
+    }
+
+    @Override
+    public Type visit(WhileStatement n, State argu) throws Exception {
+        Type whileT = n.f2.accept(this, argu);
+        if (!(whileT instanceof BooleanType)) {
+            throw new SemanticError("expression in while statement must evaluate to a boolean, got '" + whileT.name + "'");
+        }
+        n.f4.accept(this, argu);
+
+        return null;
+    }
+
+    @Override
+    public Type visit(PrintStatement n, State argu) throws Exception {
+        Type printT = n.f2.accept(this, argu);
+        if (!(printT instanceof IntType)) {
+            throw new SemanticError("expression in print statement must be of type 'int', got '" + printT.name + "'");
+        }
+
+        return null;
     }
 }
