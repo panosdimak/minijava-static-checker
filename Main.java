@@ -3,6 +3,8 @@ import java.io.FileNotFoundException;
 
 import symboltable.STValidator;
 import symboltable.SemanticError;
+import symboltable.State;
+import symboltable.TypeChecker;
 import symboltable.OffsetPrinter;
 import syntaxtree.*;
 
@@ -28,6 +30,10 @@ public class Main {
 				STValidator stv = new STValidator();
 				stv.resolveTypes(stb.globalTable);
 				stv.checkOverloads(stb.globalTable);
+
+				State state = new State();
+				TypeChecker typeChecker = new TypeChecker(stb.globalTable);
+				root.accept(typeChecker, state);
 
 				new OffsetPrinter().printOffsets(stb.globalTable);
 
