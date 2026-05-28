@@ -183,6 +183,10 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
     public Type visit(Expression n, State argu) throws Exception {
         return switch (n.f0.choice) {
             case AndExpression ae -> ae.accept(this, argu);
+            case CompareExpression ce -> ce.accept(this, argu);
+            case PlusExpression pe -> pe.accept(this, argu);
+            case MinusExpression me -> me.accept(this, argu);
+            case TimesExpression te -> te.accept(this, argu);
             case PrimaryExpression pe -> pe.accept(this, argu);
             default -> throw new IllegalStateException();
         };
@@ -205,5 +209,45 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             return new BooleanType();
         }
         throw new SemanticError("operands of && expression must be of boolean type, got " + t1.name + " and " + t2.name);
+    }
+
+    @Override
+    public Type visit(CompareExpression n, State argu) throws Exception {
+        Type t1 = n.f0.accept(this, argu);
+        Type t2 = n.f2.accept(this, argu);
+        if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
+            return new BooleanType();
+        }
+        throw new SemanticError("operands of < expression must be of int type, got " + t1.name + " and " + t2.name);
+    }
+
+    @Override
+    public Type visit(PlusExpression n, State argu) throws Exception {
+        Type t1 = n.f0.accept(this, argu);
+        Type t2 = n.f2.accept(this, argu);
+        if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
+            return new IntType();
+        }
+        throw new SemanticError("operands of + expression must be of int type, got " + t1.name + " and " + t2.name);
+    }
+
+    @Override
+    public Type visit(MinusExpression n, State argu) throws Exception {
+        Type t1 = n.f0.accept(this, argu);
+        Type t2 = n.f2.accept(this, argu);
+        if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
+            return new IntType();
+        }
+        throw new SemanticError("operands of - expression must be of int type, got " + t1.name + " and " + t2.name);
+    }
+
+    @Override
+    public Type visit(TimesExpression n, State argu) throws Exception {
+        Type t1 = n.f0.accept(this, argu);
+        Type t2 = n.f2.accept(this, argu);
+        if ((t1 instanceof IntType) && (t2 instanceof IntType)) {
+            return new IntType();
+        }
+        throw new SemanticError("operands of * expression must be of int type, got " + t1.name + " and " + t2.name);
     }
 }
