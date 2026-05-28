@@ -175,6 +175,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             }
             case ThisExpression te -> te.accept(this, argu);
             case ArrayAllocationExpression ae -> ae.accept(this, argu);
+            case AllocationExpression ae -> ae.accept(this, argu);
             case NotExpression ne -> ne.accept(this, argu);
             default -> throw new IllegalStateException();
         };
@@ -282,4 +283,12 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         throw new SemanticError("expression in array allocation must be of type int, got " + t.name);
     }
 
+    @Override
+    public Type visit(AllocationExpression n, State argu) throws Exception {
+        ClassSymbol c = globalTable.lookupClass(n.f1.f0.tokenImage);
+        if (c == null) {
+            throw new SemanticError("undeclared class " + n.f1.f0.tokenImage + " cannot be used for new allocation");
+        }
+        return c.asType();
+    }
 }
