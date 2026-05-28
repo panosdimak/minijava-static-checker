@@ -61,6 +61,23 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         return vs.type;
     }
 
+    private List<Type> exprListToTypeList(NodeOptional nodeopt, State state) throws Exception {
+        List<Type> typeList = new ArrayList<>();
+
+        if (nodeopt.present()) {
+            ExpressionList exprList = ((ExpressionList) nodeopt.node);
+
+            typeList.add(exprList.f0.accept(this, state));
+
+            for (Node node : exprList.f1.f0.nodes) {
+                ExpressionTerm exprTerm = ((ExpressionTerm) node);
+                Type t = exprTerm.f1.accept(this, state);
+                typeList.add(t);
+            }
+        }
+        return typeList;
+    }
+
     @Override
     public Type visit(MainClass n, State argu) throws Exception {
         ClassSymbol savedClass = argu.currentClass;
@@ -199,6 +216,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             case TimesExpression te -> te.accept(this, argu);
             case ArrayLookup al -> al.accept(this, argu);
             case ArrayLength al -> al.accept(this, argu);
+            case MessageSend ms -> ms.accept(this, argu);
             case PrimaryExpression pe -> pe.accept(this, argu);
             default -> throw new IllegalStateException();
         };
@@ -360,5 +378,42 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         }
 
         return null;
+    }
+
+    @Override
+    public Type visit(MessageSend n, State argu) throws Exception {
+        Type t = n.f0.accept(this, argu);
+        if (t instanceof ClassType cT) {
+            ClassSymbol cs = cT.classSymbol;
+            List<Type> argTypes = exprListToTypeList(n.f4, argu);
+            for (ClassSymbol c = cs; c != null; c = c.parent) {
+                List<MethodSymbol> mList = c.methods.get(n.f2.f0.tokenImage);
+
+                if (mList != null) {
+                    for (MethodSymbol m : mList) {
+                        if (m.paramList.size() == argTypes.size()) {
+                            boolean allMatch = true;
+                            List<VarSymbol> mLocals = new ArrayList<>(m.locals.values());
+                            for (int i = 0; i < m.paramList.size(); i++) {
+                                if (!(mLocals.get(i).type.isAssignableFrom(argTypes.get(i)))) {
+                                    allMatch = false;
+                                    break;
+                                }
+                            }
+
+                            if (allMatch) {
+                                return m.returnType;
+                            }
+                        }
+                    }
+                }
+            }
+            List<String> argTypesStringList = new ArrayList<>();
+            for (Type argType : argTypes) {
+                argTypesStringList.add(argType.name);
+            }
+            throw new SemanticError("no overload of " + cs.name + "." + n.f2.f0.tokenImage + " accepts arguments (" + String.join(", ", argTypesStringList) + ")");
+        }
+        throw new SemanticError("cannot call method on non-class type '" + t.name + "'");
     }
 }
