@@ -202,6 +202,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             case ArrayAllocationExpression ae -> ae.accept(this, argu);
             case AllocationExpression ae -> ae.accept(this, argu);
             case NotExpression ne -> ne.accept(this, argu);
+            case BracketExpression be -> be.f1.accept(this, argu);
             default -> throw new IllegalStateException();
         };
     }
