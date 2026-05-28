@@ -174,6 +174,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
                 yield vs.type;
             }
             case ThisExpression te -> te.accept(this, argu);
+            case ArrayAllocationExpression ae -> ae.accept(this, argu);
             case NotExpression ne -> ne.accept(this, argu);
             default -> throw new IllegalStateException();
         };
@@ -187,6 +188,8 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             case PlusExpression pe -> pe.accept(this, argu);
             case MinusExpression me -> me.accept(this, argu);
             case TimesExpression te -> te.accept(this, argu);
+            case ArrayLookup al -> al.accept(this, argu);
+            case ArrayLength al -> al.accept(this, argu);
             case PrimaryExpression pe -> pe.accept(this, argu);
             default -> throw new IllegalStateException();
         };
@@ -250,4 +253,33 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         }
         throw new SemanticError("operands of * expression must be of int type, got " + t1.name + " and " + t2.name);
     }
+
+    @Override
+    public Type visit(ArrayLookup n, State argu) throws Exception {
+        Type t1 = n.f0.accept(this, argu);
+        Type t2 = n.f2.accept(this, argu);
+        if ((t1 instanceof IntArrayType) && (t2 instanceof IntType)) {
+            return new IntType();
+        }
+        throw new SemanticError("array in [] expression must be of int[] type and index must be of int type, got " + t1.name + " and " + t2.name);
+    }
+
+    @Override
+    public Type visit(ArrayLength n, State argu) throws Exception {
+        Type t = n.f0.accept(this, argu);
+        if (t instanceof IntArrayType) {
+            return new IntType();
+        }
+        throw new SemanticError("operand of non-int[] type " + t.name + " not allowed in array length expression");
+    }
+
+    @Override
+    public Type visit(ArrayAllocationExpression n, State argu) throws Exception {
+        Type t = n.f3.accept(this, argu);
+        if (t instanceof IntType) {
+            return new IntArrayType();
+        }
+        throw new SemanticError("expression in array allocation must be of type int, got " + t.name);
+    }
+
 }
