@@ -9,12 +9,12 @@ public class GlobalTable {
 
 	public ClassSymbol addClass(String name, String parentName) throws SemanticError {
 		if (classes.containsKey(name)) {
-			throw new SemanticError("duplicate class " + name);
+			throw new SemanticError("duplicate class '" + name + "'");
 		}
 
 		ClassSymbol parent = classes.get(parentName);
 		if (parentName != null && parent == null) {
-			throw new SemanticError("unknown parent class " + parentName);
+			throw new SemanticError("unknown parent class '" + parentName + "'");
 		}
 
 		ClassSymbol ct = new ClassSymbol(name, parent);
@@ -39,7 +39,7 @@ public class GlobalTable {
 			if (ct != null) {
 				return ct.asType();
 			} else {
-				throw new SemanticError("unrecognized type " + name);
+				throw new SemanticError("unrecognized type '" + name + "'");
 			}
 		}
 	}

@@ -11,6 +11,7 @@ public class ClassSymbol {
 	private ClassType classType = null;
 
 	MethodSymbol mainMethod = null;
+	String mainParamName = null;
 
 	Map<String, VarSymbol> fields = new LinkedHashMap<>();
 	Map<String, List<MethodSymbol>> methods = new LinkedHashMap<>();
@@ -33,15 +34,16 @@ public class ClassSymbol {
 
 	public void addField(String name, String typeName) throws SemanticError {
 		if (fields.containsKey(name)) {
-			throw new SemanticError("duplicate field " + name);
+			throw new SemanticError("duplicate field '" + name + "' in class '" + this.name + "'");
 		}
 
 		VarSymbol vs = new VarSymbol(name, typeName);
 		fields.put(name, vs);
 	}
 
-	public MethodSymbol setMainMethod() {
+	public MethodSymbol setMainMethod(String paramName) {
 		mainMethod = new MethodSymbol(this, "main", "void");
+		mainParamName = paramName;
 		return mainMethod;
 	}
 
@@ -55,7 +57,7 @@ public class ClassSymbol {
 		if (methods.containsKey(name)) {
 			for (MethodSymbol method : methods.get(name)) {
 				if (method.paramList.equals(newMethod.paramList)) {
-					throw new SemanticError("duplicate method " + name);
+					throw new SemanticError("duplicate method '" + name + "' in class '" + this.name + "'");
 				}
 			}
 			methods.get(name).add(newMethod);

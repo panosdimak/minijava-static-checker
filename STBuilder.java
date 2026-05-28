@@ -49,7 +49,7 @@ class STBuilder extends DepthFirstVisitor {
 		String mainClassName = n.f1.f0.tokenImage;
 		ClassSymbol newClass = globalTable.addClass(mainClassName, null);
 
-		currentMethod = newClass.setMainMethod();
+		currentMethod = newClass.setMainMethod(n.f11.f0.tokenImage);
 		currentClass = newClass;
 
 		super.visit(n);

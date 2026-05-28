@@ -75,9 +75,9 @@ public class STValidator {
 						switch (compRes) {
 							case LEGAL -> { continue; }
 							case AMBIGUOUS -> throw new SemanticError(
-											"ambiguous overload by method "
-											+ M.name + " of class "
-											+ M.ownerClass.name);
+											"ambiguous overload by method '"
+											+ M.name + "' of class '"
+											+ M.ownerClass.name + "'");
 							case OVERRIDE -> throw new IllegalStateException();
 						}
 					}
@@ -91,17 +91,17 @@ public class STValidator {
 								OverloadStatus compRes = compareMethodPair(M, parentMethod);
 								switch (compRes) {
 									case LEGAL -> { continue; }
-									case AMBIGUOUS -> throw new SemanticError("ambiguous overload of method "
+									case AMBIGUOUS -> throw new SemanticError("ambiguous overload of method '"
 													+ M.name
-													+ " between class " + M.ownerClass.name
-													+ " and ancestor class " + c.name);
+													+ "' between class '" + M.ownerClass.name
+													+ "' and ancestor class '" + c.name + "'");
 									case OVERRIDE -> {
 										if (!M.returnType.isAssignableFrom(parentMethod.returnType)
 											|| !parentMethod.returnType.isAssignableFrom(M.returnType)) {
-												throw new SemanticError("invalid override of method " + M.name
-													+ ": mismatched return types "
-													+ M.returnTypeName + " (class " + M.ownerClass.name + ") vs "
-													+ parentMethod.returnTypeName + " (class " + parentMethod.ownerClass.name + ")");
+												throw new SemanticError("invalid override of method '" + M.name
+													+ "': mismatched return types '"
+													+ M.returnTypeName + "' (class '" + M.ownerClass.name + "') vs '"
+													+ parentMethod.returnTypeName + "' (class '" + parentMethod.ownerClass.name + "')");
 										}
 									}
 								}

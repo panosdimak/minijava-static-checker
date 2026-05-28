@@ -21,7 +21,7 @@ public class MethodSymbol {
 
 	public void addLocal(String name, String typeName) throws SemanticError {
 		if (locals.containsKey(name)) {
-			throw new SemanticError("duplicate variable " + name);
+			throw new SemanticError("duplicate variable '" + name + "' in method '" + ownerClass.name + "." + this.name + "'");
 		}
 
 		VarSymbol newVar = new VarSymbol(name, typeName);

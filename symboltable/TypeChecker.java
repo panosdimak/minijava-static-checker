@@ -56,7 +56,12 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
             }
         }
         if (vs == null) {
-            throw new SemanticError("undeclared identifier '" + id.f0.tokenImage + "'");
+            String name = id.f0.tokenImage;
+            if (state.currentMethod == state.currentClass.mainMethod
+                && name.equals(state.currentClass.mainParamName)) {
+                throw new SemanticError("'" + name + "' is not accessible: 'main' takes no usable parameters");
+            }
+            throw new SemanticError("undeclared identifier '" + name + "'");
         }
         return vs.type;
     }
@@ -154,9 +159,9 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
 
         Type returnExprT = n.f10.accept(this, argu);
         if (!(argu.currentMethod.returnType.isAssignableFrom(returnExprT))) {
-            throw new SemanticError("return type of method " + argu.currentMethod.name +
-                                    " in class " + argu.currentMethod.ownerClass +
-                                    " is '" + argu.currentMethod.returnType.name +
+            throw new SemanticError("return type of method '" + argu.currentMethod.name +
+                                    "' in class '" + argu.currentMethod.ownerClass.name +
+                                    "' is '" + argu.currentMethod.returnType.name +
                                     "', got '" + returnExprT.name + "'");
         }
 
@@ -285,11 +290,14 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
     @Override
     public Type visit(ArrayLookup n, State argu) throws Exception {
         Type t1 = n.f0.accept(this, argu);
-        Type t2 = n.f2.accept(this, argu);
-        if ((t1 instanceof IntArrayType) && (t2 instanceof IntType)) {
-            return new IntType();
+        if (!(t1 instanceof IntArrayType)) {
+            throw new SemanticError("array operand of [] expression must be of int[] type, got '" + t1.name + "'");
         }
-        throw new SemanticError("array in [] expression must be of int[] type and index must be of int type, got '" + t1.name + "' and '" + t2.name + "'");
+        Type t2 = n.f2.accept(this, argu);
+        if (!(t2 instanceof IntType)) {
+            throw new SemanticError("index of [] expression must be of int type, got '" + t2.name + "'");
+        }
+        return new IntType();
     }
 
     @Override
@@ -386,11 +394,14 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         Type t = n.f0.accept(this, argu);
         if (t instanceof ClassType cT) {
             ClassSymbol cs = cT.classSymbol;
+            String methodName = n.f2.f0.tokenImage;
             List<Type> argTypes = exprListToTypeList(n.f4, argu);
+            boolean nameFound = false;
             for (ClassSymbol c = cs; c != null; c = c.parent) {
-                List<MethodSymbol> mList = c.methods.get(n.f2.f0.tokenImage);
+                List<MethodSymbol> mList = c.methods.get(methodName);
 
                 if (mList != null) {
+                    nameFound = true;
                     for (MethodSymbol m : mList) {
                         if (m.paramList.size() == argTypes.size()) {
                             boolean allMatch = true;
@@ -409,11 +420,14 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
                     }
                 }
             }
+            if (!nameFound) {
+                throw new SemanticError("class '" + cs.name + "' has no method named '" + methodName + "'");
+            }
             List<String> argTypesStringList = new ArrayList<>();
             for (Type argType : argTypes) {
                 argTypesStringList.add(argType.name);
             }
-            throw new SemanticError("no overload of " + cs.name + "." + n.f2.f0.tokenImage + " accepts arguments (" + String.join(", ", argTypesStringList) + ")");
+            throw new SemanticError("no overload of '" + cs.name + "." + methodName + "' accepts arguments (" + String.join(", ", argTypesStringList) + ")");
         }
         throw new SemanticError("cannot call method on non-class type '" + t.name + "'");
     }
