@@ -121,9 +121,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         }
 
         MethodSymbol found = null;
-        for (MethodSymbol vmethod : argu.currentClass.methods.get(
-            vmethodName))
-        {
+        for (MethodSymbol vmethod : argu.currentClass.methods.get(vmethodName)) {
             if (vmethod.paramList.equals(vParamStrings)) {
                 found = vmethod;
                 break;
@@ -136,6 +134,14 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
         argu.currentMethod = found;
 
         super.visit(n, argu);
+
+        Type returnExprT = n.f10.accept(this, argu);
+        if (!(argu.currentMethod.returnType.isAssignableFrom(returnExprT))) {
+            throw new SemanticError("return type of method " + argu.currentMethod.name +
+                                    " in class " + argu.currentMethod.ownerClass +
+                                    " is '" + argu.currentMethod.returnType.name +
+                                    "', got '" + returnExprT.name + "'");
+        }
 
         argu.currentMethod = savedMethod;
 
