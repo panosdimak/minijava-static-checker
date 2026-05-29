@@ -2,47 +2,17 @@ import syntaxtree.*;
 import visitor.*;
 import symboltable.GlobalTable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import symboltable.ClassSymbol;
 import symboltable.MethodSymbol;
 import symboltable.VarSymbol;
+import util.Util;
 
 class STBuilder extends DepthFirstVisitor {
 	GlobalTable globalTable = new GlobalTable();
 	ClassSymbol currentClass = null;
 	MethodSymbol currentMethod = null;
-
-	private String typeToString(Type t) {
-		return switch (t.f0.choice) {
-			case ArrayType ar -> "int[]";
-			case BooleanType b -> "boolean";
-			case IntegerType in -> "int";
-			case Identifier i -> i.f0.tokenImage;
-			default -> throw new IllegalStateException("unexpected Type variant " + t.f0.choice.getClass().getName());
-		};
-	}
-
-	private VarSymbol fpToVarSymbol(FormalParameter fp) {
-		return new VarSymbol(fp.f1.f0.tokenImage, typeToString(fp.f0));
-	}
-
-	private List<VarSymbol> nodeoptToVarSymbolList(NodeOptional nodeopt) {
-		List<VarSymbol> list = new ArrayList<>();
-
-		if (nodeopt.present()) {
-			FormalParameterList fplist = ((FormalParameterList) nodeopt.node);
-
-			list.add(fpToVarSymbol(fplist.f0));
-			for (Node node : fplist.f1.f0.nodes) {
-				FormalParameterTerm fpterm = ((FormalParameterTerm) node);
-				list.add(fpToVarSymbol(fpterm.f1));
-			}
-		}
-		return list;
-	}
-
 
 	@Override
 	public void visit(MainClass n) throws Exception {
@@ -87,7 +57,7 @@ class STBuilder extends DepthFirstVisitor {
 	@Override
 	public void visit(VarDeclaration n) throws Exception {
 		String varName = n.f1.f0.tokenImage;
-		String varTypeName = typeToString(n.f0);
+		String varTypeName = Util.typeToString(n.f0);
 
 		if (currentMethod == null) {
 			currentClass.addField(varName, varTypeName);
@@ -99,10 +69,10 @@ class STBuilder extends DepthFirstVisitor {
 
 	@Override
 	public void visit(MethodDeclaration n) throws Exception {
-		String returnTypeName = typeToString(n.f1);
+		String returnTypeName = Util.typeToString(n.f1);
 		String methodName = n.f2.f0.tokenImage;
 
-		List<VarSymbol> params = nodeoptToVarSymbolList(n.f4);
+		List<VarSymbol> params = Util.nodeoptToVarSymbolList(n.f4);
 
 		MethodSymbol newMethod = currentClass.addMethod(methodName, returnTypeName, params);
 		currentMethod = newMethod;

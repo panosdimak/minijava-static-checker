@@ -20,7 +20,7 @@ all: compile
 compile: $(JTB_JAR) $(JAVACC_JAR) $(GRAMMAR)
 	java -jar $(JTB_JAR) -te $(GRAMMAR)
 	java -jar $(JAVACC_JAR) $(JTB_OUT)
-	javac *.java syntaxtree/*.java visitor/*.java symboltable/*.java
+	javac *.java syntaxtree/*.java visitor/*.java symboltable/*.java util/*.java
 
 $(JTB_JAR):
 	$(CURL) -o $@ $(JTB_URL)
