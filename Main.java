@@ -12,7 +12,7 @@ public class Main {
 
 	public static void main(String[] args) {
 		if (args.length < 1) {
-			System.err.println("Usage: java Main <inputFile>");
+			System.err.println("Usage: java Main <inputFile1> [<inputFile2> ...]");
 			System.exit(1);
 		}
 

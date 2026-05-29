@@ -13,12 +13,7 @@ public class OffsetPrinter {
             System.out.println("-----------Class " + classSymbol.name + "-----------");
             System.out.println("--Variables---");
 
-            int fieldCounter;
-            if (classSymbol.parent == null) {
-                fieldCounter = 0;
-            } else {
-                fieldCounter = classSymbol.parent.fieldBlockSize;
-            }
+            int fieldCounter = (classSymbol.parent == null) ? 0 : classSymbol.parent.fieldBlockSize;
 
             for (VarSymbol field : classSymbol.fields.values()) {
                 System.out.println(classSymbol.name + "." + field.name + " : " + fieldCounter);
@@ -29,12 +24,7 @@ public class OffsetPrinter {
             System.out.println("---Methods---");
 
 
-            int vtableCounter;
-            if (classSymbol.parent == null) {
-                vtableCounter = 0;
-            } else {
-                vtableCounter = classSymbol.parent.vtableSize;
-            }
+            int vtableCounter = (classSymbol.parent == null) ? 0 : classSymbol.parent.vtableSize;
 
             for (MethodSymbol method : classSymbol.methodsInOrder) {
                 ClassSymbol c = method.ownerClass.parent;

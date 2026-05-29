@@ -54,20 +54,14 @@ public class ClassSymbol {
 			newMethod.addLocal(param.name, param.typeName);
 		}
 
-		if (methods.containsKey(name)) {
-			for (MethodSymbol method : methods.get(name)) {
-				if (method.paramList.equals(newMethod.paramList)) {
-					throw new SemanticError("duplicate method '" + name + "' in class '" + this.name + "'");
-				}
-			}
-			methods.get(name).add(newMethod);
-			methodsInOrder.add(newMethod);
-		} else {
-			List<MethodSymbol> list = new ArrayList<>();
-			list.add(newMethod);
-			methods.put(name, list);
-			methodsInOrder.add(newMethod);
-		}
+        List<MethodSymbol> methodList = methods.computeIfAbsent(name, l -> new ArrayList<>());
+        for (MethodSymbol method : methodList) {
+            if (method.paramList.equals(newMethod.paramList)) {
+                throw new SemanticError("duplicate method '" + name + "' in class '" + this.name + "'");
+           	}
+        }
+        methodList.add(newMethod);
+        methodsInOrder.add(newMethod);
 
 		return newMethod;
 	}
