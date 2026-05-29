@@ -35,13 +35,15 @@ make fetchclean
 
 `make clean` + removes the fetched files.
 
+## Structure
+
 ### Pipeline
 
 ```
 STBuilder -> STValidator -> TypeChecker -> OffsetPrinter
 ```
 
-### Project Structure
+### Project Layout
 
 - `Main.java`: Entry point  
 - `STBuilder.java`: Builds the symbol table by walking class, method and variable declarations (visitor)
