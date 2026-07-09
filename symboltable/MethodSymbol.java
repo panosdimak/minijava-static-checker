@@ -20,7 +20,7 @@ public class MethodSymbol {
     }
 
     public void addLocal(String name, String typeName) throws SemanticError {
-        if (locals.containsKey(name)) {
+        if (locals.containsKey(name) || (this == ownerClass.mainMethod && name.equals(ownerClass.mainParamName))) {
             throw new SemanticError("duplicate variable '" + name + "' in method '" + ownerClass.name + "." + this.name + "'");
         }
 
