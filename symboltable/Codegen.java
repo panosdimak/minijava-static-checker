@@ -45,6 +45,7 @@ public class Codegen extends GJDepthFirst<String, State> {
         MethodSymbol savedMethod = argu.currentMethod;
 
         argu.irText.append("define i32 @main() {\nentry:\n");
+        argu.currentBlock = "%entry";
 
         String mainClassName = n.f1.f0.tokenImage;
         ClassSymbol mainClass = globalTable.lookupClass(mainClassName);
@@ -59,6 +60,104 @@ public class Codegen extends GJDepthFirst<String, State> {
         argu.currentMethod = savedMethod;
 
         return null;
+    }
+
+    @Override
+    public String visit(IntegerLiteral n, State argu) throws Exception {
+        return n.f0.tokenImage;
+    }
+
+    @Override
+    public String visit(PrintStatement n, State argu) throws Exception {
+        String expr = visit(n.f2, argu);
+        argu.irText.append("call void @print_int(i32 ").append(expr).append(")\n");
+
+        return null;
+    }
+
+    @Override
+    public String visit(PlusExpression n, State argu) throws Exception {
+        String a = visit(n.f0, argu);
+        String b = visit(n.f2, argu);
+        String dst = argu.newReg();
+
+        argu.emit("%s = add i32 %s, %s", dst, a, b);
+
+        return dst;
+    }
+
+    @Override
+    public String visit(MinusExpression n, State argu) throws Exception {
+        String a = visit(n.f0, argu);
+        String b = visit(n.f2, argu);
+        String dst = argu.newReg();
+
+        argu.emit("%s = sub i32 %s, %s", dst, a, b);
+
+        return dst;
+    }
+
+    @Override
+    public String visit(TimesExpression n, State argu) throws Exception {
+        String a = visit(n.f0, argu);
+        String b = visit(n.f2, argu);
+        String dst = argu.newReg();
+
+        argu.emit("%s = mul i32 %s, %s", dst, a, b);
+
+        return dst;
+    }
+
+    @Override
+    public String visit(CompareExpression n, State argu) throws Exception {
+        String a = visit(n.f0, argu);
+        String b = visit(n.f2, argu);
+        String dst = argu.newReg();
+
+        argu.emit("%s = icmp slt i32 %s, %s", dst, a, b);
+
+        return dst;
+    }
+
+    @Override
+    public String visit(BracketExpression n, State argu) throws Exception {
+        String dst = visit(n.f1, argu);
+
+        return dst;
+    }
+
+    @Override
+    public String visit(NotExpression n, State argu) throws Exception {
+        String a = visit(n.f1, argu);
+        String dst = argu.newReg();
+
+        argu.emit("%s = xor i1 %s, true", dst, a);
+
+        return dst;
+    }
+
+    @Override
+    public String visit(AndExpression n, State argu) throws Exception {
+        String a = visit(n.f0, argu);
+        String aBlock = argu.currentBlock;
+
+        String l1 = argu.newLabel();
+        String l2 = argu.newLabel();
+
+        argu.emit("br i1 %s, label %s, label %s", a, l1, l2);
+
+        argu.emit("%s:", l1.substring(1));
+        argu.currentBlock = l1;
+        String b = visit(n.f2, argu);
+        String bBlock = argu.currentBlock;
+        argu.emit("br label %s", l2);
+
+        argu.emit("%s:", l2.substring(1));
+        argu.currentBlock = l2;
+        String dst = argu.newReg();
+        argu.emit("%s = phi i1 [ false, %s ], [ %s, %s ]", dst, aBlock, b, bBlock);
+
+        return dst;
     }
 
     public void generate(Goal root, String inputFileName, State state) throws Exception {
