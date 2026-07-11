@@ -6,6 +6,7 @@ import symboltable.SemanticError;
 import symboltable.State;
 import symboltable.TypeChecker;
 import symboltable.OffsetPrinter;
+import symboltable.Codegen;
 import syntaxtree.*;
 
 public class Main {
@@ -36,6 +37,9 @@ public class Main {
                 root.accept(typeChecker, state);
 
                 new OffsetPrinter().printOffsets(stb.globalTable);
+
+                Codegen codegen = new Codegen(stb.globalTable);
+                codegen.generate(root, path, state);
 
                 System.err.println("Program parsed successfully.");
             } catch (ParseException e) {
