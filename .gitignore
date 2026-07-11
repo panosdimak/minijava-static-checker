@@ -1,5 +1,9 @@
 jtb-javacc-2019/
 minijava-examples-new/
+llvm-examples
+
+*.ll
+out
 
 *.jar
 !lib/*.jar
