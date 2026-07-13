@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import syntaxtree.*;
+import util.Util;
 import visitor.GJDepthFirst;
 
 public class Codegen extends GJDepthFirst<String, State> {
@@ -44,7 +47,7 @@ public class Codegen extends GJDepthFirst<String, State> {
         ClassSymbol savedClass = argu.currentClass;
         MethodSymbol savedMethod = argu.currentMethod;
 
-        argu.irText.append("define i32 @main() {\nentry:\n");
+        argu.emit("define i32 @main() {\nentry:");
         argu.currentBlock = "%entry";
 
         String mainClassName = n.f1.f0.tokenImage;
@@ -52,11 +55,107 @@ public class Codegen extends GJDepthFirst<String, State> {
         argu.currentClass = mainClass;
         argu.currentMethod = mainClass.mainMethod;
 
+        for (VarSymbol local : argu.currentMethod.locals.values()) {
+            argu.emit("%s = alloca %s", "%" + local.name, convertType(local.type));
+        }
+
         super.visit(n, argu);
 
-        argu.irText.append("\tret i32 0\n}\n");
+        argu.emit("ret i32 0\n}");
 
         argu.currentClass = savedClass;
+        argu.currentMethod = savedMethod;
+
+        return null;
+    }
+
+    @Override
+    public String visit(ClassDeclaration n, State argu) throws Exception {
+        ClassSymbol savedClass = argu.currentClass;
+
+        String vClassName = n.f1.f0.tokenImage;
+        ClassSymbol vClass = globalTable.lookupClass(vClassName);
+        argu.currentClass = vClass;
+        super.visit(n, argu);
+
+        argu.currentClass = savedClass;
+
+        return null;
+    }
+
+    @Override
+    public String visit(ClassExtendsDeclaration n, State argu) throws Exception {
+        ClassSymbol savedClass = argu.currentClass;
+
+        String vClassName = n.f1.f0.tokenImage;
+        ClassSymbol vClass = globalTable.lookupClass(vClassName);
+        argu.currentClass = vClass;
+
+        super.visit(n, argu);
+
+        argu.currentClass = savedClass;
+
+        return null;
+    }
+
+    @Override
+    public String visit(MethodDeclaration n, State argu) throws Exception {
+        MethodSymbol savedMethod = argu.currentMethod;
+        String vmethodName = n.f2.f0.tokenImage;
+        List<VarSymbol> vparams = Util.nodeoptToVarSymbolList(n.f4);
+
+        List<String> vParamStrings = new ArrayList<>();
+        for (VarSymbol v : vparams) {
+            vParamStrings.add(v.typeName);
+        }
+
+        MethodSymbol found = null;
+        for (MethodSymbol vmethod : argu.currentClass.methods.get(vmethodName)) {
+            if (vmethod.paramList.equals(vParamStrings)) {
+                found = vmethod;
+                break;
+            }
+        }
+        if (found == null) {
+            throw new IllegalStateException("no MethodSymbol for " + vmethodName +
+                                            " in " + argu.currentClass.name);
+        }
+        argu.currentMethod = found;
+
+        List<VarSymbol> locals = new ArrayList<>(argu.currentMethod.locals.values());
+
+        int paramsEndIndex = argu.currentMethod.paramList.size();
+        String llvmParams = "i8* %this";
+        List<String> paramList = new ArrayList<>();
+        for (VarSymbol param : locals.subList(0, paramsEndIndex)) {
+            paramList.add(convertType(param.type) + " %." + param.name);
+        }
+        if (!paramList.isEmpty()) {
+            llvmParams += ", " + String.join(", ", paramList);
+        }
+
+        argu.emit("define %s @%s.%s(%s) {\nentry:",
+                convertType(argu.currentMethod.returnType),
+                argu.currentClass.name, argu.currentMethod.name,
+                llvmParams);
+
+        argu.currentBlock = "%entry";
+
+        for (VarSymbol param : locals.subList(0, paramsEndIndex)) {
+            argu.emit("%s = alloca %s", "%" + param.name, convertType(param.type));
+            argu.emit("store %s %s, ptr %s", convertType(param.type), "%." + param.name, "%" + param.name);
+        }
+
+        for (VarSymbol local : locals.subList(paramsEndIndex, locals.size())) {
+            argu.emit("%s = alloca %s", "%" + local.name, convertType(local.type));
+        }
+
+        visit(n.f8, argu);
+
+        String retOp = visit(n.f10, argu);
+        argu.emit("ret %s %s", convertType(argu.currentMethod.returnType), retOp);
+        argu.emit("}");
+
         argu.currentMethod = savedMethod;
 
         return null;
@@ -70,7 +169,7 @@ public class Codegen extends GJDepthFirst<String, State> {
     @Override
     public String visit(PrintStatement n, State argu) throws Exception {
         String expr = visit(n.f2, argu);
-        argu.irText.append("call void @print_int(i32 ").append(expr).append(")\n");
+        argu.emit("call void @print_int(i32 %s)", expr);
 
         return null;
     }
@@ -121,9 +220,7 @@ public class Codegen extends GJDepthFirst<String, State> {
 
     @Override
     public String visit(BracketExpression n, State argu) throws Exception {
-        String dst = visit(n.f1, argu);
-
-        return dst;
+        return visit(n.f1, argu);
     }
 
     @Override
@@ -158,6 +255,45 @@ public class Codegen extends GJDepthFirst<String, State> {
         argu.emit("%s = phi i1 [ false, %s ], [ %s, %s ]", dst, aBlock, b, bBlock);
 
         return dst;
+    }
+
+    @Override
+    public String visit(AssignmentStatement n, State argu) throws Exception {
+        VarSymbol id = resolveIdentifier(n.f0, argu);
+        String rhs = visit(n.f2, argu);
+        argu.emit("store %s %s, ptr %s", convertType(id.type), rhs, "%" + id.name);
+
+        return null;
+    }
+
+    @Override
+    public String visit(PrimaryExpression n, State argu) throws Exception {
+        return switch (n.f0.choice) {
+            case Identifier id -> {
+                VarSymbol v = resolveIdentifier(id, argu);
+                String dst = argu.newReg();
+                argu.emit("%s = load %s, ptr %s", dst, convertType(v.type), "%" + v.name);
+                yield dst;
+            }
+            default -> n.f0.choice.accept(this, argu);
+        };
+    }
+
+    private VarSymbol resolveIdentifier(Identifier id, State state) throws Exception {
+        VarSymbol vs = state.currentMethod.locals.get(id.f0.tokenImage);
+        if (vs == null) {
+            throw new IllegalStateException("TODO: fields");
+        }
+
+        return vs;
+    }
+
+    private String convertType(Type type) {
+        return switch (type) {
+            case IntType i -> "i32";
+            case BooleanType b -> "i1";
+            default -> "i8*";
+        };
     }
 
     public void generate(Goal root, String inputFileName, State state) throws Exception {
