@@ -279,6 +279,56 @@ public class Codegen extends GJDepthFirst<String, State> {
         };
     }
 
+    @Override
+    public String visit(IfStatement n, State argu) throws Exception {
+        String expr = visit(n.f2, argu);
+
+        String ifBlock = argu.newLabel();
+        String elseBlock = argu.newLabel();
+        String nextBlock = argu.newLabel();
+
+        argu.emit("br i1 %s, label %s, label %s", expr, ifBlock, elseBlock);
+
+        argu.emit("%s:", ifBlock.substring(1));
+        argu.currentBlock = ifBlock;
+        visit(n.f4, argu);
+        argu.emit("br label %s", nextBlock);
+
+        argu.emit("%s:", elseBlock.substring(1));
+        argu.currentBlock = elseBlock;
+        visit(n.f6, argu);
+        argu.emit("br label %s", nextBlock);
+
+        argu.emit("%s:", nextBlock.substring(1));
+        argu.currentBlock = nextBlock;
+
+        return null;
+    }
+
+    @Override
+    public String visit(WhileStatement n, State argu) throws Exception {
+        String condBlock = argu.newLabel();
+        String bodyBlock = argu.newLabel();
+        String nextBlock = argu.newLabel();
+
+        argu.emit("br label %s", condBlock);
+
+        argu.emit("%s:", condBlock.substring(1));
+        argu.currentBlock = condBlock;
+        String expr = visit(n.f2, argu);
+        argu.emit("br i1 %s, label %s, label %s", expr, bodyBlock, nextBlock);
+
+        argu.emit("%s:", bodyBlock.substring(1));
+        argu.currentBlock = bodyBlock;
+        visit(n.f4, argu);
+        argu.emit("br label %s", condBlock);
+
+        argu.emit("%s:", nextBlock.substring(1));
+        argu.currentBlock = nextBlock;
+
+        return null;
+    }
+
     private VarSymbol resolveIdentifier(Identifier id, State state) throws Exception {
         VarSymbol vs = state.currentMethod.locals.get(id.f0.tokenImage);
         if (vs == null) {
