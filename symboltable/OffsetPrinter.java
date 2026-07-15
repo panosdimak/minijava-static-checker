@@ -4,25 +4,19 @@ import java.util.List;
 
 public class OffsetPrinter {
 
-    public void printOffsets(GlobalTable globalTable) {
+    public void compute(GlobalTable globalTable) {
         for (ClassSymbol classSymbol : globalTable.classes.values()) {
             if (classSymbol.mainMethod != null) {
                 continue;
             }
 
-            System.out.println("-----------Class " + classSymbol.name + "-----------");
-            System.out.println("--Variables---");
-
             int fieldCounter = (classSymbol.parent == null) ? 0 : classSymbol.parent.fieldBlockSize;
 
             for (VarSymbol field : classSymbol.fields.values()) {
-                System.out.println(classSymbol.name + "." + field.name + " : " + fieldCounter);
+                field.byteOffset = fieldCounter;
                 fieldCounter += field.type.byteSize();
             }
             classSymbol.fieldBlockSize = fieldCounter;
-
-            System.out.println("---Methods---");
-
 
             int vtableCounter = (classSymbol.parent == null) ? 0 : classSymbol.parent.vtableSize;
 
@@ -45,11 +39,36 @@ public class OffsetPrinter {
                 }
 
                 if (!isOverride) {
-                    System.out.println(classSymbol.name + "." + method.name + " : " + vtableCounter);
+                    method.byteOffset = vtableCounter;
                     vtableCounter += 8;
                 }
             }
             classSymbol.vtableSize = vtableCounter;
+        }
+    }
+
+    public void print(GlobalTable globalTable) {
+        for (ClassSymbol classSymbol : globalTable.classes.values()) {
+            if (classSymbol.mainMethod != null) {
+                continue;
+            }
+
+            System.out.println("-----------Class " + classSymbol.name + "-----------");
+            System.out.println("--Variables---");
+
+            for (VarSymbol field : classSymbol.fields.values()) {
+                System.out.println(classSymbol.name + "." + field.name + " : " + field.byteOffset);
+            }
+
+            System.out.println("---Methods---");
+
+            for (MethodSymbol method : classSymbol.methodsInOrder) {
+                if (method.byteOffset < 0) {
+                    continue;
+                }
+
+                System.out.println(classSymbol.name + "." + method.name + " : " + method.byteOffset);
+            }
 
             System.out.println();
         }

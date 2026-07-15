@@ -10,6 +10,7 @@ public class MethodSymbol {
     String name;
     String returnTypeName;
     Type returnType;
+    int byteOffset = -1;
     Map<String, VarSymbol> locals = new LinkedHashMap<>();
     List<String> paramList = new ArrayList<>();
 

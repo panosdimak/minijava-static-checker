@@ -36,7 +36,9 @@ public class Main {
                 TypeChecker typeChecker = new TypeChecker(stb.globalTable);
                 root.accept(typeChecker, state);
 
-                new OffsetPrinter().printOffsets(stb.globalTable);
+                OffsetPrinter offsetPrinter = new OffsetPrinter();
+                offsetPrinter.compute(stb.globalTable);
+                offsetPrinter.print(stb.globalTable);
 
                 Codegen codegen = new Codegen(stb.globalTable);
                 codegen.generate(root, path, state);
