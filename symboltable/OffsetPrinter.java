@@ -1,5 +1,6 @@
 package symboltable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class OffsetPrinter {
@@ -20,27 +21,27 @@ public class OffsetPrinter {
 
             int vtableCounter = (classSymbol.parent == null) ? 0 : classSymbol.parent.vtableSize;
 
+            if (classSymbol.parent != null) {
+                classSymbol.vtableList = new ArrayList<>(classSymbol.parent.vtableList);
+            }
+
             for (MethodSymbol method : classSymbol.methodsInOrder) {
-                ClassSymbol c = method.ownerClass.parent;
-                boolean isOverride = false;
+                int matchIndex = -1;
 
-                while (c != null && !isOverride) {
-                    List<MethodSymbol> pMethods = c.methods.get(method.name);
-                    if (pMethods != null) {
-                        for (MethodSymbol pMethod : pMethods) {
-                            if (pMethod.paramList.equals(method.paramList)) {
-                                isOverride = true;
-                                break;
-                            }
-                        }
+                for (int i = 0; i < classSymbol.vtableList.size(); i++) {
+                    MethodSymbol vMethod = classSymbol.vtableList.get(i);
+                    if (vMethod.name.equals(method.name) && vMethod.paramList.equals(method.paramList)) {
+                        matchIndex = i;
+                        break;
                     }
-
-                    c = c.parent;
                 }
 
-                if (!isOverride) {
+                if (matchIndex >= 0) {
+                    classSymbol.vtableList.set(matchIndex, method);
+                } else {
                     method.byteOffset = vtableCounter;
                     vtableCounter += 8;
+                    classSymbol.vtableList.add(method);
                 }
             }
             classSymbol.vtableSize = vtableCounter;

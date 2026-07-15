@@ -364,9 +364,30 @@ public class Codegen extends GJDepthFirst<String, State> {
         };
     }
 
+    private void emitVtable(State state) {
+        for (ClassSymbol classSymbol : globalTable.classes.values()) {
+            if (classSymbol.mainMethod != null) {
+                continue;
+            }
+
+            List<String> vtableList = new ArrayList<>();
+            for (MethodSymbol method : classSymbol.vtableList) {
+                vtableList.add("ptr @" + method.ownerClass.name + "." + method.name);
+            }
+
+            int methodCount = classSymbol.vtableSize / 8;
+            state.emit("@.%s_vtable = global [ %s x ptr ] [ %s ]",
+                classSymbol.name,
+                methodCount,
+                methodCount > 0 ? String.join(", ", vtableList) : "");
+        }
+    }
+
     public void generate(Goal root, String inputFileName, State state) throws Exception {
         state.irText = new StringBuilder();
         state.irText.append(helpers);
+
+        emitVtable(state);
 
         root.accept(this, state);
 

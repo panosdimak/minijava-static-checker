@@ -19,6 +19,7 @@ public class ClassSymbol {
 
     int fieldBlockSize = 0;
     int vtableSize = 0;
+    List<MethodSymbol> vtableList = new ArrayList<>();
 
     public ClassSymbol(String name, ClassSymbol parent) {
         this.name = name;
