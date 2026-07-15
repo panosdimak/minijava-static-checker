@@ -19,6 +19,8 @@ public class Codegen extends GJDepthFirst<String, State> {
         this.globalTable = globalTable;
     }
 
+    private record Pointer (Type type, String reg) {}
+
     public static final String helpers =
     """
     declare i8* @calloc(i32, i32)
@@ -258,10 +260,15 @@ public class Codegen extends GJDepthFirst<String, State> {
     }
 
     @Override
+    public String visit(ThisExpression n, State argu) {
+        return "%this";
+    }
+
+    @Override
     public String visit(AssignmentStatement n, State argu) throws Exception {
-        VarSymbol id = resolveIdentifier(n.f0, argu);
+        Pointer pointer = resolveIdentifier(n.f0, argu);
         String rhs = visit(n.f2, argu);
-        argu.emit("store %s %s, ptr %s", convertType(id.type), rhs, "%" + id.name);
+        argu.emit("store %s %s, ptr %s", convertType(pointer.type), rhs, pointer.reg);
 
         return null;
     }
@@ -270,9 +277,9 @@ public class Codegen extends GJDepthFirst<String, State> {
     public String visit(PrimaryExpression n, State argu) throws Exception {
         return switch (n.f0.choice) {
             case Identifier id -> {
-                VarSymbol v = resolveIdentifier(id, argu);
+                Pointer pointer = resolveIdentifier(id, argu);
                 String dst = argu.newReg();
-                argu.emit("%s = load %s, ptr %s", dst, convertType(v.type), "%" + v.name);
+                argu.emit("%s = load %s, ptr %s", dst, convertType(pointer.type), pointer.reg);
                 yield dst;
             }
             default -> n.f0.choice.accept(this, argu);
@@ -329,13 +336,24 @@ public class Codegen extends GJDepthFirst<String, State> {
         return null;
     }
 
-    private VarSymbol resolveIdentifier(Identifier id, State state) throws Exception {
+    private Pointer resolveIdentifier(Identifier id, State state) throws Exception {
         VarSymbol vs = state.currentMethod.locals.get(id.f0.tokenImage);
-        if (vs == null) {
-            throw new IllegalStateException("TODO: fields");
+        if (vs != null) {
+            return new Pointer(vs.type, "%" + vs.name);
         }
 
-        return vs;
+        for (ClassSymbol c = state.currentClass; c != null && vs == null; c = c.parent) {
+            vs = c.fields.get(id.f0.tokenImage);
+        }
+
+        if (vs == null) {
+            throw new IllegalStateException("undeclared identifier '" + id.f0.tokenImage + "'");
+        }
+
+        String dst = state.newReg();
+        state.emit("%s = getelementptr i8, ptr %%this, i32 %s", dst, 8 + vs.byteOffset);
+
+        return new Pointer(vs.type, dst);
     }
 
     private String convertType(Type type) {
