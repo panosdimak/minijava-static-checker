@@ -265,6 +265,24 @@ public class Codegen extends GJDepthFirst<String, State> {
     }
 
     @Override
+    public String visit(AllocationExpression n, State argu) {
+        String dst = argu.newReg();
+        ClassSymbol classSymbol = globalTable.lookupClass(n.f1.f0.tokenImage);
+
+        argu.emit("%s = call i8* @calloc(i32 1, i32 %s)", dst, 8 + classSymbol.fieldBlockSize);
+
+        String vtable = argu.newReg();
+        argu.emit("%s = getelementptr [%s x ptr], ptr @.%s_vtable, i32 0, i32 0",
+            vtable,
+            classSymbol.vtableSize / 8,
+            classSymbol.name);
+
+        argu.emit("store ptr %s, ptr %s", vtable, dst);
+
+        return dst;
+    }
+
+    @Override
     public String visit(AssignmentStatement n, State argu) throws Exception {
         Pointer pointer = resolveIdentifier(n.f0, argu);
         String rhs = visit(n.f2, argu);
