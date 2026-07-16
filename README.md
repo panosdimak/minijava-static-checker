@@ -1,12 +1,23 @@
-# MiniJava Static Checker
+# MiniJava Compiler
 
-A static semantic analyzer for **MiniJava**. It parses one or more `.java` files and type checks them. Valid programs are accepted and their field/method **offset table** is printed; invalid programs are rejected with a specific error message.
+An end-to-end compiler for **MiniJava**. The front end does a full semantic
+analysis: classes and single inheritance, method overloading
+and overriding, and static type checking. The back end lowers every accepted
+program to **LLVM IR** with real object layouts, virtual method dispatch, and
+bounds-checked arrays.
 
-Built on top of a JavaCC parser and a JTB-generated visitor AST.
+Compiles one or more `.java` files at a time, emitting textual
+LLVM IR that [`clang`](https://clang.llvm.org/) turns into a binary. Ill-typed
+programs are rejected with a specific error message and produce no output.
 
-## What it checks
+Built on a JavaCC parser and a JTB-generated visitor AST: a static-analysis
+front end (three semantic passes) feeds an LLVM code-generation back end.
 
-The checker runs a semantic pass over MiniJava that covers:
+## What it does
+
+### Front end: static analysis
+
+Only well-typed programs reach code generation. The semantic passes cover:
 
 - **Declarations.** Globally unique class names, per-class field uniqueness
   (with parent-field shadowing), per-method local/parameter uniqueness, and
@@ -21,16 +32,34 @@ The checker runs a semantic pass over MiniJava that covers:
   conditionals, arithmetic, boolean and comparison operators, method calls
   (with overload resolution against the receiver's class and ancestors),
   allocation, `this`, and `return`.
-- **Offsets.** For every non-`main`, non-inherited field and method, computes
-  its memory offset. Fields are packed by size (`int` 4, `boolean` 1, pointer 8,
-  no alignment) starting at the parent's field-block size; methods are placed
-  in vtable order, skipping overrides.
+
+### Back end: LLVM code generation
+
+Every accepted program is lowered to textual LLVM IR:
+
+- **Object layout.** Each object is a vtable pointer (8 bytes) followed by its
+  fields, packed by size with no alignment, continuing from the parent's field
+  block. Field and method **offsets** are computed once and reused by codegen.
+- **Objects and dispatch.** `new C()` is a zeroing `calloc` (Java default field
+  values for free) with the class's vtable installed in the header. Method
+  calls load the function pointer from the vtable slot and call through it, so
+  dispatch is virtual and overrides resolve at run time.
+- **Overloading.** Same-name methods that differ by signature get distinct,
+  unambiguous LLVM symbols, so legal MiniJava overloads compile cleanly.
+- **Arrays.** `new int[n]` stores the length in a header slot; every lookup and
+  store is bounds-checked and traps out-of-range accesses via a runtime helper.
+- **Control flow.** `if`/`while` and short-circuit `&&` lower to explicit basic
+  blocks with `phi` nodes; locals live in memory (`alloca`/`load`/`store`).
+
+The emitted IR uses opaque pointers (`ptr`) and declares no target triple, so
+`clang` compiles it for whatever host it runs on.
 
 ## Build
 
-Requires **Java 21+** (uses pattern matching for `switch`). The build is
-self-contained: the JTB and JavaCC tools and the grammar are vendored in the
-repo.
+Requires **Java 21+** (uses pattern matching for `switch`) to build the
+compiler, and **`clang`** to compile the emitted IR (verified with LLVM 21). The
+build is self-contained: the JTB and JavaCC tools and the grammar are vendored
+in the repo.
 
 ```bash
 make
@@ -44,49 +73,71 @@ make
 java Main <inputFile1> [<inputFile2> ...]
 ```
 
-The offset table is printed to **stdout**; errors and the `=== <path> ===`
-headers go to **stderr**.
+For each `<file>.java` the compiler writes `<file>.ll`. The field/method offset
+table is printed to **stdout**; errors and the `=== <path> ===` headers go to
+**stderr**. Compile and run the IR with `clang`:
 
-### Accepted program
+```bash
+clang -o out file.ll
+./out
+```
+
+### Example
 
 ```java
-class Demo {
+class Fac {
     public static void main(String[] a) {
-        System.out.println(new Tree().init());
+        System.out.println(new Calc().fac(5));
     }
 }
 
-class Tree {
-    int value;
-    Tree left;
-    public int init() { value = 42; return value; }
-    public int size() { return 1; }
-}
-
-class Leaf extends Tree {
-    boolean marked;
-    public int size() { return 1; }
+class Calc {
+    public int fac(int n) {
+        int r;
+        if (n < 1) r = 1;
+        else r = n * (this.fac(n - 1));
+        return r;
+    }
 }
 ```
 
-```
-$ java Main Demo.java
------------Class Tree-----------
---Variables---
-Tree.value : 0
-Tree.left : 4
----Methods---
-Tree.init : 0
-Tree.size : 8
-
------------Class Leaf-----------
---Variables---
-Leaf.marked : 12
----Methods---
+```bash
+$ java Main Fac.java     # emits Fac.ll (and prints the offset table)
+$ clang -o out Fac.ll
+$ ./out
+120
 ```
 
-`Leaf.marked` continues from `Tree`'s field block (`int` 4 + pointer 8 = 12),
-and `Leaf.size` is correctly omitted as an override of `Tree.size`.
+The generated `Fac.ll` (boilerplate omitted) shows the vtable, the
+`calloc`-allocated object, and virtual dispatch:
+
+```llvm
+@.Calc_vtable = global [ 1 x ptr ] [ ptr @Calc.fac ]
+
+define i32 @main() {
+entry:
+	%_1 = call i8* @calloc(i32 1, i32 8)          ; new Calc()
+	%_2 = getelementptr [1 x ptr], ptr @.Calc_vtable, i32 0, i32 0
+	store ptr %_2, ptr %_1                         ; install vtable
+	%_3 = load ptr, ptr %_1
+	%_4 = getelementptr ptr, ptr %_3, i32 0        ; vtable slot 0
+	%_5 = load ptr, ptr %_4
+	%_6 = call i32 %_5(i8* %_1, i32 5)             ; this.fac(5)
+	call void @print_int(i32 %_6)
+	ret i32 0
+}
+
+define i32 @Calc.fac(i8* %this, i32 %.n) {
+entry:
+	%n = alloca i32
+	store i32 %.n, ptr %n
+	%r = alloca i32
+	%_7 = load i32, ptr %n
+	%_8 = icmp slt i32 %_7, 1
+	br i1 %_8, label %l1, label %l2
+	; ... then/else blocks, recursive call, ret ...
+}
+```
 
 ### Rejected program
 
@@ -107,10 +158,11 @@ operands of < expression must be of int type, got 'int' and 'boolean'
 
 ## Architecture
 
-The checker runs three passes and a printer over the JTB AST:
+The compiler runs three semantic passes, an offset-computation pass, and the
+code generator over the JTB AST:
 
 ```
-STBuilder -> STValidator -> TypeChecker -> OffsetPrinter
+STBuilder -> STValidator -> TypeChecker -> OffsetPrinter (compute) -> Codegen
 ```
 
 1. **STBuilder** walks the AST and populates the symbol table.
@@ -118,25 +170,32 @@ STBuilder -> STValidator -> TypeChecker -> OffsetPrinter
    method overloads/overrides (needs the full ancestor chain, so it is a
    separate pass).
 3. **TypeChecker** walks method bodies and type-checks every statement and
-   expression.
-4. **OffsetPrinter** walks the symbol table and emits the offset table.
+   expression, recording each call's resolved method for codegen.
+4. **OffsetPrinter** computes field and method offsets, annotating the symbol
+   table (and prints the human-readable offset table).
+5. **Codegen** walks the type-checked AST and emits LLVM IR, reading the
+   offsets computed above as data.
 
 ### Project layout
 
-- `Main.java`: entry point; drives the four phases per input file.
+- `Main.java`: entry point; drives the phases per input file.
 - `STBuilder.java`: builds the symbol table (JTB `DepthFirstVisitor`).
 - `symboltable/` package:
   - `GlobalTable.java`: top-level table mapping class names to class symbols.
-  - `ClassSymbol.java`: a class (fields, methods, parent reference, offsets).
-  - `MethodSymbol.java`: a method (parameters, locals, return type, owner).
-  - `VarSymbol.java`: a variable (field, local, or parameter).
+  - `ClassSymbol.java`: a class (fields, methods, parent reference, offsets,
+    vtable layout).
+  - `MethodSymbol.java`: a method (parameters, locals, return type, owner,
+    vtable slot).
+  - `VarSymbol.java`: a variable (field, local, or parameter) with its offset.
   - `Type.java`: MiniJava types with assignability and byte-size logic.
   - `SemanticError.java`: the single checked exception used across passes.
   - `STValidator.java`: type-name resolution and overload/override checking.
-  - `State.java`: current class/method context for the `TypeChecker`.
+  - `State.java`: per-file context (current class/method, register/label
+    counters, and the IR buffer) shared by `TypeChecker` and `Codegen`.
   - `TypeChecker.java`: the type-checking visitor (JTB `GJDepthFirst`).
-  - `OffsetPrinter.java`: computes and prints field/method offsets.
-- `util/Util.java`: shared AST helpers used by `STBuilder` and `TypeChecker`.
+  - `OffsetPrinter.java`: computes field/method offsets and prints the table.
+  - `Codegen.java`: the LLVM IR back end (JTB `GJDepthFirst`).
+- `util/Util.java`: shared AST helpers.
 
 ## Credits & third-party components
 
@@ -147,7 +206,7 @@ STBuilder -> STValidator -> TypeChecker -> OffsetPrinter
   inside `lib/jtb133di.jar`).
 - **JavaCC** is also licensed BSD-3-Clause.
 
-The MIT license below covers the checker source written for this project. The
+The MIT license below covers the compiler source written for this project. The
 vendored tools under `lib/` and the grammar keep their own respective terms.
 
 ## License
