@@ -24,6 +24,10 @@ public class State {
     }
 
     public void emit(String format, Object... args) {
+        irText.append("\t").append(String.format(format, args)).append("\n");
+    }
+
+    public void emitRaw(String format, Object... args) {
         irText.append(String.format(format, args)).append("\n");
     }
 }

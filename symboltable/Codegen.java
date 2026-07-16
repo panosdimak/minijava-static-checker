@@ -22,34 +22,35 @@ public class Codegen extends GJDepthFirst<String, State> {
     private record Pointer (Type type, String reg) {}
 
     public static final String helpers =
-    """
-    declare i8* @calloc(i32, i32)
-    declare i32 @printf(i8*, ...)
-    declare void @exit(i32)
+"""
+declare i8* @calloc(i32, i32)
+declare i32 @printf(i8*, ...)
+declare void @exit(i32)
 
-    @_cint = constant [4 x i8] c"%d\\0a\\00"
-    @_cOOB = constant [15 x i8] c"Out of bounds\\0a\\00"
-    define void @print_int(i32 %i) {
-        %_str = bitcast [4 x i8]* @_cint to i8*
-        call i32 (i8*, ...) @printf(i8* %_str, i32 %i)
-        ret void
-    }
+@_cint = constant [4 x i8] c"%d\\0a\\00"
+@_cOOB = constant [15 x i8] c"Out of bounds\\0a\\00"
+define void @print_int(i32 %i) {
+	%_str = bitcast [4 x i8]* @_cint to i8*
+	call i32 (i8*, ...) @printf(i8* %_str, i32 %i)
+	ret void
+}
 
-    define void @throw_oob() {
-        %_str = bitcast [15 x i8]* @_cOOB to i8*
-        call i32 (i8*, ...) @printf(i8* %_str)
-        call void @exit(i32 1)
-        ret void
-    }
-
-    """;
+define void @throw_oob() {
+	%_str = bitcast [15 x i8]* @_cOOB to i8*
+	call i32 (i8*, ...) @printf(i8* %_str)
+	call void @exit(i32 1)
+	ret void
+}
+""";
 
     @Override
     public String visit(MainClass n, State argu) throws Exception {
         ClassSymbol savedClass = argu.currentClass;
         MethodSymbol savedMethod = argu.currentMethod;
 
-        argu.emit("define i32 @main() {\nentry:");
+        argu.emitRaw("");
+        argu.emitRaw("define i32 @main() {");
+        argu.emitRaw("entry:");
         argu.currentBlock = "%entry";
 
         String mainClassName = n.f1.f0.tokenImage;
@@ -63,7 +64,8 @@ public class Codegen extends GJDepthFirst<String, State> {
 
         super.visit(n, argu);
 
-        argu.emit("ret i32 0\n}");
+        argu.emit("ret i32 0");
+        argu.emitRaw("}");
 
         argu.currentClass = savedClass;
         argu.currentMethod = savedMethod;
@@ -136,10 +138,12 @@ public class Codegen extends GJDepthFirst<String, State> {
             llvmParams += ", " + String.join(", ", paramList);
         }
 
-        argu.emit("define %s @%s.%s(%s) {\nentry:",
+        argu.emitRaw("");
+        argu.emitRaw("define %s @%s.%s(%s) {",
                 convertType(argu.currentMethod.returnType),
                 argu.currentClass.name, argu.currentMethod.name,
                 llvmParams);
+        argu.emitRaw("entry:");
 
         argu.currentBlock = "%entry";
 
@@ -156,7 +160,7 @@ public class Codegen extends GJDepthFirst<String, State> {
 
         String retOp = visit(n.f10, argu);
         argu.emit("ret %s %s", convertType(argu.currentMethod.returnType), retOp);
-        argu.emit("}");
+        argu.emitRaw("}");
 
         argu.currentMethod = savedMethod;
 
@@ -255,13 +259,13 @@ public class Codegen extends GJDepthFirst<String, State> {
 
         argu.emit("br i1 %s, label %s, label %s", a, l1, l2);
 
-        argu.emit("%s:", l1.substring(1));
+        argu.emitRaw("%s:", l1.substring(1));
         argu.currentBlock = l1;
         String b = visit(n.f2, argu);
         String bBlock = argu.currentBlock;
         argu.emit("br label %s", l2);
 
-        argu.emit("%s:", l2.substring(1));
+        argu.emitRaw("%s:", l2.substring(1));
         argu.currentBlock = l2;
         String dst = argu.newReg();
         argu.emit("%s = phi i1 [ false, %s ], [ %s, %s ]", dst, aBlock, b, bBlock);
@@ -325,12 +329,12 @@ public class Codegen extends GJDepthFirst<String, State> {
         String arrayBlock = argu.newLabel();
         argu.emit("br i1 %s, label %s, label %s", guardreg, throwBlock, arrayBlock);
 
-        argu.emit("%s:", throwBlock.substring(1));
+        argu.emitRaw("%s:", throwBlock.substring(1));
         argu.currentBlock = throwBlock;
         argu.emit("call void @throw_oob()");
         argu.emit("br label %s", arrayBlock);
 
-        argu.emit("%s:", arrayBlock.substring(1));
+        argu.emitRaw("%s:", arrayBlock.substring(1));
         argu.currentBlock = arrayBlock;
 
         String newSizeReg = argu.newReg();
@@ -365,12 +369,12 @@ public class Codegen extends GJDepthFirst<String, State> {
         String oobBlock = argu.newLabel();
         argu.emit("br i1 %s, label %s, label %s", boundscheckReg, inBoundsBlock, oobBlock);
 
-        argu.emit("%s:", oobBlock.substring(1));
+        argu.emitRaw("%s:", oobBlock.substring(1));
         argu.currentBlock = oobBlock;
         argu.emit("call void @throw_oob()");
         argu.emit("unreachable");
 
-        argu.emit("%s:", inBoundsBlock.substring(1));
+        argu.emitRaw("%s:", inBoundsBlock.substring(1));
         argu.currentBlock = inBoundsBlock;
 
         String newIdxReg = argu.newReg();
@@ -402,12 +406,12 @@ public class Codegen extends GJDepthFirst<String, State> {
         String oobBlock = argu.newLabel();
         argu.emit("br i1 %s, label %s, label %s", boundscheckReg, inBoundsBlock, oobBlock);
 
-        argu.emit("%s:", oobBlock.substring(1));
+        argu.emitRaw("%s:", oobBlock.substring(1));
         argu.currentBlock = oobBlock;
         argu.emit("call void @throw_oob()");
         argu.emit("unreachable");
 
-        argu.emit("%s:", inBoundsBlock.substring(1));
+        argu.emitRaw("%s:", inBoundsBlock.substring(1));
         argu.currentBlock = inBoundsBlock;
 
         String newIdxReg = argu.newReg();
@@ -430,17 +434,17 @@ public class Codegen extends GJDepthFirst<String, State> {
 
         argu.emit("br i1 %s, label %s, label %s", expr, ifBlock, elseBlock);
 
-        argu.emit("%s:", ifBlock.substring(1));
+        argu.emitRaw("%s:", ifBlock.substring(1));
         argu.currentBlock = ifBlock;
         visit(n.f4, argu);
         argu.emit("br label %s", nextBlock);
 
-        argu.emit("%s:", elseBlock.substring(1));
+        argu.emitRaw("%s:", elseBlock.substring(1));
         argu.currentBlock = elseBlock;
         visit(n.f6, argu);
         argu.emit("br label %s", nextBlock);
 
-        argu.emit("%s:", nextBlock.substring(1));
+        argu.emitRaw("%s:", nextBlock.substring(1));
         argu.currentBlock = nextBlock;
 
         return null;
@@ -454,17 +458,17 @@ public class Codegen extends GJDepthFirst<String, State> {
 
         argu.emit("br label %s", condBlock);
 
-        argu.emit("%s:", condBlock.substring(1));
+        argu.emitRaw("%s:", condBlock.substring(1));
         argu.currentBlock = condBlock;
         String expr = visit(n.f2, argu);
         argu.emit("br i1 %s, label %s, label %s", expr, bodyBlock, nextBlock);
 
-        argu.emit("%s:", bodyBlock.substring(1));
+        argu.emitRaw("%s:", bodyBlock.substring(1));
         argu.currentBlock = bodyBlock;
         visit(n.f4, argu);
         argu.emit("br label %s", condBlock);
 
-        argu.emit("%s:", nextBlock.substring(1));
+        argu.emitRaw("%s:", nextBlock.substring(1));
         argu.currentBlock = nextBlock;
 
         return null;
@@ -552,9 +556,15 @@ public class Codegen extends GJDepthFirst<String, State> {
     }
 
     private void emitVtable(State state) {
+        boolean first = true;
         for (ClassSymbol classSymbol : globalTable.classes.values()) {
             if (classSymbol.mainMethod != null) {
                 continue;
+            }
+
+            if (first) {
+                state.emitRaw("");
+                first = false;
             }
 
             List<String> vtableList = new ArrayList<>();
@@ -563,7 +573,7 @@ public class Codegen extends GJDepthFirst<String, State> {
             }
 
             int methodCount = classSymbol.vtableSize / 8;
-            state.emit("@.%s_vtable = global [ %s x ptr ] [ %s ]",
+            state.emitRaw("@.%s_vtable = global [ %s x ptr ] [ %s ]",
                 classSymbol.name,
                 methodCount,
                 methodCount > 0 ? String.join(", ", vtableList) : "");
@@ -584,7 +594,7 @@ public class Codegen extends GJDepthFirst<String, State> {
         Path filePath = Paths.get(outputFileName);
 
         try {
-            Files.writeString(filePath, state.irText);
+            Files.writeString(filePath, state.irText.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
