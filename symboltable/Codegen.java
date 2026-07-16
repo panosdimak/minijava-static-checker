@@ -169,6 +169,16 @@ public class Codegen extends GJDepthFirst<String, State> {
     }
 
     @Override
+    public String visit(TrueLiteral n, State argu) throws Exception {
+        return "true";
+    }
+
+    @Override
+    public String visit(FalseLiteral n, State argu) throws Exception {
+        return "false";
+    }
+
+    @Override
     public String visit(PrintStatement n, State argu) throws Exception {
         String expr = visit(n.f2, argu);
         argu.emit("call void @print_int(i32 %s)", expr);
