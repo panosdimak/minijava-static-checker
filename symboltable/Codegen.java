@@ -139,9 +139,9 @@ define void @throw_oob() {
         }
 
         argu.emitRaw("");
-        argu.emitRaw("define %s @%s.%s(%s) {",
+        argu.emitRaw("define %s @%s(%s) {",
                 convertType(argu.currentMethod.returnType),
-                argu.currentClass.name, argu.currentMethod.name,
+                methodSymbolName(argu.currentMethod),
                 llvmParams);
         argu.emitRaw("entry:");
 
@@ -556,6 +556,17 @@ define void @throw_oob() {
         return operands;
     }
 
+    private String methodSymbolName(MethodSymbol method) {
+        String s = method.ownerClass.name + "." + method.name;
+
+        if (method.ownerClass.methods.get(method.name).size() > 1) {
+            int mIndex = method.ownerClass.methods.get(method.name).indexOf(method);
+            s += "." + mIndex;
+        }
+
+        return s;
+    }
+
     private void emitVtable(State state) {
         boolean first = true;
         for (ClassSymbol classSymbol : globalTable.classes.values()) {
@@ -570,7 +581,7 @@ define void @throw_oob() {
 
             List<String> vtableList = new ArrayList<>();
             for (MethodSymbol method : classSymbol.vtableList) {
-                vtableList.add("ptr @" + method.ownerClass.name + "." + method.name);
+                vtableList.add("ptr @" + methodSymbolName(method));
             }
 
             int methodCount = classSymbol.vtableSize / 8;
