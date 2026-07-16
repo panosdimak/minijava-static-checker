@@ -332,7 +332,7 @@ define void @throw_oob() {
         argu.emitRaw("%s:", throwBlock.substring(1));
         argu.currentBlock = throwBlock;
         argu.emit("call void @throw_oob()");
-        argu.emit("br label %s", arrayBlock);
+        argu.emit("unreachable");
 
         argu.emitRaw("%s:", arrayBlock.substring(1));
         argu.currentBlock = arrayBlock;
@@ -495,8 +495,9 @@ define void @throw_oob() {
         List<VarSymbol> locals = new ArrayList<>(method.locals.values());
         int paramsSize = method.paramList.size();
 
+        List<VarSymbol> params = new ArrayList<>(locals.subList(0, paramsSize));
         for (int i = 0; i < paramsSize; i++) {
-            pairs.add(convertType(locals.subList(0, paramsSize).get(i).type) + " " + operands.get(i));
+            pairs.add(convertType(params.get(i).type) + " " + operands.get(i));
         }
 
         String args = pairs.isEmpty() ? "" : ", " + String.join(", ", pairs);
@@ -588,7 +589,7 @@ define void @throw_oob() {
 
         root.accept(this, state);
 
-        String outputFileName = inputFileName.substring(0, inputFileName.indexOf(".java"));
+        String outputFileName = inputFileName.substring(0, inputFileName.lastIndexOf(".java"));
         outputFileName += ".ll";
 
         Path filePath = Paths.get(outputFileName);
