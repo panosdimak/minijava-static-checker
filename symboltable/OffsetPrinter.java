@@ -38,8 +38,10 @@ public class OffsetPrinter {
 
                 if (matchIndex >= 0) {
                     classSymbol.vtableList.set(matchIndex, method);
+                    method.slot = matchIndex;
                 } else {
                     method.byteOffset = vtableCounter;
+                    method.slot = classSymbol.vtableList.size();
                     vtableCounter += 8;
                     classSymbol.vtableList.add(method);
                 }

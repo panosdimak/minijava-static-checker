@@ -384,6 +384,7 @@ public class TypeChecker extends GJDepthFirst<Type, State> {
                             }
 
                             if (allMatch) {
+                                argu.resolvedCalls.put(n, m);
                                 return m.returnType;
                             }
                         }

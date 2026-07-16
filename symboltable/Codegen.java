@@ -354,6 +354,42 @@ public class Codegen extends GJDepthFirst<String, State> {
         return null;
     }
 
+    @Override
+    public String visit(MessageSend n, State argu) throws Exception {
+        MethodSymbol method = argu.resolvedCalls.get(n);
+        String objReg = visit(n.f0, argu);
+
+        String vtReg = argu.newReg();
+        argu.emit("%s = load ptr, ptr %s", vtReg, objReg);
+
+        String slotReg = argu.newReg();
+        argu.emit("%s = getelementptr ptr, ptr %s, i32 %s", slotReg, vtReg, method.slot);
+
+        String fpReg = argu.newReg();
+        argu.emit("%s = load ptr, ptr %s", fpReg, slotReg);
+
+        String callReg = argu.newReg();
+        List<String> pairs = new ArrayList<>();
+        List<String> operands = exprListToOperandList(n.f4, argu);
+
+        List<VarSymbol> locals = new ArrayList<>(method.locals.values());
+        int paramsSize = method.paramList.size();
+
+        for (int i = 0; i < paramsSize; i++) {
+            pairs.add(convertType(locals.subList(0, paramsSize).get(i).type) + " " + operands.get(i));
+        }
+
+        String args = pairs.isEmpty() ? "" : ", " + String.join(", ", pairs);
+        argu.emit("%s = call %s %s(i8* %s%s)",
+            callReg,
+            convertType(method.returnType),
+            fpReg,
+            objReg,
+            args);
+
+        return callReg;
+    }
+
     private Pointer resolveIdentifier(Identifier id, State state) throws Exception {
         VarSymbol vs = state.currentMethod.locals.get(id.f0.tokenImage);
         if (vs != null) {
@@ -380,6 +416,23 @@ public class Codegen extends GJDepthFirst<String, State> {
             case BooleanType b -> "i1";
             default -> "i8*";
         };
+    }
+
+    private List<String> exprListToOperandList(NodeOptional nodeopt, State state) throws Exception {
+        List<String> operands = new ArrayList<>();
+
+        if (nodeopt.present()) {
+            ExpressionList exprList = ((ExpressionList) nodeopt.node);
+
+            operands.add(exprList.f0.f0.accept(this, state));
+
+            for (Node node : exprList.f1.f0.nodes) {
+                ExpressionTerm exprTerm = ((ExpressionTerm) node);
+                String op = exprTerm.f1.accept(this, state);
+                operands.add(op);
+            }
+        }
+        return operands;
     }
 
     private void emitVtable(State state) {

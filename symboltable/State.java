@@ -1,5 +1,9 @@
 package symboltable;
 
+import java.util.IdentityHashMap;
+
+import syntaxtree.MessageSend;
+
 public class State {
     ClassSymbol currentClass;
     MethodSymbol currentMethod;
@@ -7,6 +11,7 @@ public class State {
     int regCounter;
     int labelCounter;
     StringBuilder irText;
+    IdentityHashMap<MessageSend, MethodSymbol> resolvedCalls = new IdentityHashMap<>();
 
     public String newReg() {
         regCounter++;

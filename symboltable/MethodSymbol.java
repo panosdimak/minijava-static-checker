@@ -11,6 +11,7 @@ public class MethodSymbol {
     String returnTypeName;
     Type returnType;
     int byteOffset = -1;
+    int slot;
     Map<String, VarSymbol> locals = new LinkedHashMap<>();
     List<String> paramList = new ArrayList<>();
 
