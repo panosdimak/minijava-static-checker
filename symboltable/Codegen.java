@@ -305,6 +305,112 @@ public class Codegen extends GJDepthFirst<String, State> {
     }
 
     @Override
+    public String visit(ArrayAllocationExpression n, State argu) throws Exception {
+        String sizeReg = visit(n.f3, argu);
+
+        String guardreg = argu.newReg();
+        argu.emit("%s = icmp slt i32 %s, 0", guardreg, sizeReg);
+
+        String throwBlock = argu.newLabel();
+        String arrayBlock = argu.newLabel();
+        argu.emit("br i1 %s, label %s, label %s", guardreg, throwBlock, arrayBlock);
+
+        argu.emit("%s:", throwBlock.substring(1));
+        argu.currentBlock = throwBlock;
+        argu.emit("call void @throw_oob()");
+        argu.emit("br label %s", arrayBlock);
+
+        argu.emit("%s:", arrayBlock.substring(1));
+        argu.currentBlock = arrayBlock;
+
+        String newSizeReg = argu.newReg();
+        argu.emit("%s = add i32 %s, 1", newSizeReg, sizeReg);
+        String allocReg = argu.newReg();
+        argu.emit("%s = call i8* @calloc(i32 4, i32 %s)", allocReg, newSizeReg);
+        argu.emit("store i32 %s, ptr %s", sizeReg, allocReg);
+
+        return allocReg;
+    }
+
+    @Override
+    public String visit(ArrayLength n, State argu) throws Exception {
+        String arrayReg = visit(n.f0, argu);
+        String lengthReg = argu.newReg();
+        argu.emit("%s = load i32, ptr %s", lengthReg, arrayReg);
+
+        return lengthReg;
+    }
+
+    @Override
+    public String visit(ArrayLookup n, State argu) throws Exception {
+        String arrayReg = visit(n.f0, argu);
+        String idxReg = visit(n.f2, argu);
+        String lengthReg = argu.newReg();
+        argu.emit("%s = load i32, ptr %s", lengthReg, arrayReg);
+
+        String boundscheckReg = argu.newReg();
+        argu.emit("%s = icmp ult i32 %s, %s", boundscheckReg, idxReg, lengthReg);
+
+        String inBoundsBlock = argu.newLabel();
+        String oobBlock = argu.newLabel();
+        argu.emit("br i1 %s, label %s, label %s", boundscheckReg, inBoundsBlock, oobBlock);
+
+        argu.emit("%s:", oobBlock.substring(1));
+        argu.currentBlock = oobBlock;
+        argu.emit("call void @throw_oob()");
+        argu.emit("unreachable");
+
+        argu.emit("%s:", inBoundsBlock.substring(1));
+        argu.currentBlock = inBoundsBlock;
+
+        String newIdxReg = argu.newReg();
+        argu.emit("%s = add i32 %s, 1", newIdxReg, idxReg);
+
+        String ptrReg = argu.newReg();
+        argu.emit("%s = getelementptr i32, ptr %s, i32 %s", ptrReg, arrayReg, newIdxReg);
+        String loadReg = argu.newReg();
+        argu.emit("%s = load i32, ptr %s", loadReg, ptrReg);
+
+        return loadReg;
+    }
+
+    @Override
+    public String visit(ArrayAssignmentStatement n, State argu) throws Exception {
+        String id = resolveIdentifier(n.f0, argu).reg;
+        String arrReg = argu.newReg();
+        argu.emit("%s = load ptr, ptr %s", arrReg, id);
+        String idxReg = visit(n.f2, argu);
+        String rhs = visit(n.f5, argu);
+
+        String lengthReg = argu.newReg();
+        argu.emit("%s = load i32, ptr %s", lengthReg, arrReg);
+
+        String boundscheckReg = argu.newReg();
+        argu.emit("%s = icmp ult i32 %s, %s", boundscheckReg, idxReg, lengthReg);
+
+        String inBoundsBlock = argu.newLabel();
+        String oobBlock = argu.newLabel();
+        argu.emit("br i1 %s, label %s, label %s", boundscheckReg, inBoundsBlock, oobBlock);
+
+        argu.emit("%s:", oobBlock.substring(1));
+        argu.currentBlock = oobBlock;
+        argu.emit("call void @throw_oob()");
+        argu.emit("unreachable");
+
+        argu.emit("%s:", inBoundsBlock.substring(1));
+        argu.currentBlock = inBoundsBlock;
+
+        String newIdxReg = argu.newReg();
+        argu.emit("%s = add i32 %s, 1", newIdxReg, idxReg);
+
+        String ptrReg = argu.newReg();
+        argu.emit("%s = getelementptr i32, ptr %s, i32 %s", ptrReg, arrReg, newIdxReg);
+        argu.emit("store i32 %s, ptr %s", rhs, ptrReg);
+
+        return null;
+    }
+
+    @Override
     public String visit(IfStatement n, State argu) throws Exception {
         String expr = visit(n.f2, argu);
 
