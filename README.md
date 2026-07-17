@@ -1,88 +1,37 @@
 # MiniJava Compiler
 
-An end-to-end compiler for **MiniJava**. The front end does a full semantic
-analysis: classes and single inheritance, method overloading
-and overriding, and static type checking. The back end lowers every accepted
-program to **LLVM IR** with real object layouts, virtual method dispatch, and
-bounds-checked arrays.
+A **MiniJava** compiler that targets LLVM IR, written in Java on top of
+a JavaCC parser and a JTB-generated visitor AST.
 
-Compiles one or more `.java` files at a time, emitting textual
-LLVM IR that [`clang`](https://clang.llvm.org/) turns into a binary. Ill-typed
-programs are rejected with a specific error message and produce no output.
+The front end does a full semantic analysis: declarations, single inheritance,
+method overloading and overriding, and static type checking. Every accepted
+program is then lowered to textual LLVM IR with object layouts, virtual method
+dispatch, and bounds-checked arrays. Ill-typed programs are rejected with a
+specific error message and produce no output.
 
-Built on a JavaCC parser and a JTB-generated visitor AST: a static-analysis
-front end (three semantic passes) feeds an LLVM code-generation back end.
-
-## What it does
-
-### Front end: static analysis
-
-Only well-typed programs reach code generation. The semantic passes cover:
-
-- **Declarations.** Globally unique class names, per-class field uniqueness
-  (with parent-field shadowing), per-method local/parameter uniqueness, and
-  the source-order `extends` rule that makes inheritance cycles impossible.
-- **Types.** Resolves every type name (`int`, `boolean`, `int[]`, declared
-  classes) and enforces the subtype relation (reflexive, transitive over
-  `extends`, primitives unrelated to anything but themselves).
-- **Overloading and overriding.** Classifies every same-name method pair across
-  a class and its ancestor chain as a legal overload, an ambiguous overload
-  (rejected), or an override (with return-type identity enforced).
-- **Statements and expressions.** Type checks assignments, array operations,
-  conditionals, arithmetic, boolean and comparison operators, method calls
-  (with overload resolution against the receiver's class and ancestors),
-  allocation, `this`, and `return`.
-
-### Back end: LLVM code generation
-
-Every accepted program is lowered to textual LLVM IR:
-
-- **Object layout.** Each object is a vtable pointer (8 bytes) followed by its
-  fields, packed by size with no alignment, continuing from the parent's field
-  block. Field and method **offsets** are computed once and reused by codegen.
-- **Objects and dispatch.** `new C()` is a zeroing `calloc` (Java default field
-  values for free) with the class's vtable installed in the header. Method
-  calls load the function pointer from the vtable slot and call through it, so
-  dispatch is virtual and overrides resolve at run time.
-- **Overloading.** Same-name methods that differ by signature get distinct,
-  unambiguous LLVM symbols, so legal MiniJava overloads compile cleanly.
-- **Arrays.** `new int[n]` stores the length in a header slot; every lookup and
-  store is bounds-checked and traps out-of-range accesses via a runtime helper.
-- **Control flow.** `if`/`while` and short-circuit `&&` lower to explicit basic
-  blocks with `phi` nodes; locals live in memory (`alloca`/`load`/`store`).
-
-The emitted IR uses opaque pointers (`ptr`) and declares no target triple, so
-`clang` compiles it for whatever host it runs on.
-
-## Build
-
-Requires **Java 21+** (uses pattern matching for `switch`) to build the
-compiler, and **`clang`** to compile the emitted IR (verified with LLVM 21). The
-build is self-contained: the JTB and JavaCC tools and the grammar are vendored
-in the repo.
+## Build & Usage
 
 ```bash
+# Build the compiler (needs Java 21+)
 make
-```
 
-`make clean` removes everything JTB, JavaCC and `javac` generated.
+# Run it on one or more files: each <file>.java produces <file>.ll
+java Main file1 [file2 [file3 ...]]
 
-## Usage
-
-```bash
-java Main <inputFile1> [<inputFile2> ...]
-```
-
-For each `<file>.java` the compiler writes `<file>.ll`. The field/method offset
-table is printed to **stdout**; errors and the `=== <path> ===` headers go to
-**stderr**. Compile and run the IR with `clang`:
-
-```bash
-clang -o out file.ll
+# Compile and run the emitted IR (needs clang; verified with LLVM 21)
+clang -o out file1.ll
 ./out
+
+# Cleanup: removes everything JTB, JavaCC and javac generated
+make clean
 ```
 
-### Example
+The build is self-contained: the JTB and JavaCC tools and the grammar are
+vendored in the repo. The field/method
+offset table is printed to **stdout**; errors and the `=== <path> ===` headers
+go to **stderr**.
+
+## Example
 
 ```java
 class Fac {
@@ -109,7 +58,8 @@ $ ./out
 ```
 
 The generated `Fac.ll` (boilerplate omitted) shows the vtable, the
-`calloc`-allocated object, and virtual dispatch:
+`calloc`-allocated object, and virtual dispatch through the loaded function
+pointer:
 
 ```llvm
 @.Calc_vtable = global [ 1 x ptr ] [ ptr @Calc.fac ]
@@ -139,7 +89,7 @@ entry:
 }
 ```
 
-### Rejected program
+A rejected program instead prints a diagnostic and emits nothing:
 
 ```java
 class Checker {
@@ -156,25 +106,66 @@ $ java Main Bad.java
 operands of < expression must be of int type, got 'int' and 'boolean'
 ```
 
-## Architecture
+## Implementation
 
-The compiler runs three semantic passes, an offset-computation pass, and the
-code generator over the JTB AST:
+### Semantic analysis
+
+Only well-typed programs reach code generation. The passes cover:
+
+- **Declarations.** Globally unique class names, per-class field uniqueness
+  (with parent-field shadowing), per-method local/parameter uniqueness, and the
+  source-order `extends` rule that makes inheritance cycles impossible.
+- **Types.** Every type name (`int`, `boolean`, `int[]`, declared classes) is
+  resolved, and the subtype relation is enforced (reflexive, transitive over
+  `extends`, primitives unrelated to anything but themselves).
+- **Overloading and overriding.** Every same-name method pair across a class and
+  its ancestor chain is classified as a legal overload, an ambiguous overload
+  (rejected), or an override (with return-type identity enforced).
+- **Statements and expressions.** Assignments, array operations, conditionals,
+  arithmetic, boolean and comparison operators, method calls (with overload
+  resolution against the receiver's class and ancestors), allocation, `this`,
+  and `return` are all type checked.
+
+### Code generation
+
+Each object is a vtable pointer (8 bytes) followed by its fields, packed by size
+with no alignment, continuing from the parent's field block. Field and method
+offsets are computed once and reused by the back end.
+
+- **Objects and dispatch.** `new C()` is a zeroing `calloc`, so fields start at
+  their Java default values, with the class's vtable installed in the header.
+  Method calls load the function pointer from the vtable slot and call through
+  it, so dispatch is virtual and overrides resolve at run time.
+- **Overloading.** Same-name methods that differ by signature get distinct LLVM
+  symbols, so legal MiniJava overloads do not collide.
+- **Arrays.** `new int[n]` stores the length in a header slot; every lookup and
+  store is bounds-checked and traps out-of-range accesses via a runtime helper.
+- **Control flow.** `if`/`while` and short-circuit `&&` lower to explicit basic
+  blocks with `phi` nodes; locals live in memory (`alloca`/`load`/`store`).
+
+### Compilation phases
+
+We produce an AST for the source program with JavaCC and JTB, check its
+semantics, compute the object layout, and finally emit LLVM IR, using the
+following visitor and walker classes:
 
 ```
 STBuilder -> STValidator -> TypeChecker -> OffsetPrinter (compute) -> Codegen
 ```
 
-1. **STBuilder** walks the AST and populates the symbol table.
-2. **STValidator** resolves type names to `Type` objects and classifies
-   method overloads/overrides (needs the full ancestor chain, so it is a
-   separate pass).
-3. **TypeChecker** walks method bodies and type-checks every statement and
-   expression, recording each call's resolved method for codegen.
-4. **OffsetPrinter** computes field and method offsets, annotating the symbol
-   table (and prints the human-readable offset table).
-5. **Codegen** walks the type-checked AST and emits LLVM IR, reading the
-   offsets computed above as data.
+1. `STBuilder` walks the AST and populates the symbol table.
+
+2. `STValidator` resolves type names to `Type` objects and classifies method
+   overloads/overrides (this needs the full ancestor chain, so it is a separate
+   pass).
+
+3. `TypeChecker` type checks every statement and expression, recording each
+   call's resolved method for the back end.
+
+4. `OffsetPrinter` computes field and method offsets, annotates the symbol
+   table, and prints the human-readable offset table.
+
+5. `Codegen` walks the type-checked AST and emits the LLVM IR.
 
 ### Project layout
 
@@ -196,6 +187,21 @@ STBuilder -> STValidator -> TypeChecker -> OffsetPrinter (compute) -> Codegen
   - `OffsetPrinter.java`: computes field/method offsets and prints the table.
   - `Codegen.java`: the LLVM IR back end (JTB `GJDepthFirst`).
 - `util/Util.java`: shared AST helpers.
+
+### Notes
+
+- The `MainClass` and its `main` method are mostly not special-cased, with two
+  exceptions: `this` is rejected inside `main`, and the `main` argument is kept
+  out of the symbol table (its `String[]` type has no representation here), so
+  using it in an expression is reported as an undeclared identifier.
+- Overloaded methods are name-mangled only on collision: a method whose name is
+  unique in its class keeps the plain `@Class.method` symbol, and dispatch works
+  through the loaded vtable pointer either way, so the call site never needs the
+  mangled name.
+- Virtual registers are named `%_number`, where `number` auto-increments. The
+  leading `_` keeps them out of LLVM's implicit numbering of unnamed values.
+- The emitted IR uses opaque pointers (`ptr`) and declares no target triple, so
+  `clang` compiles it for whatever host it runs on.
 
 ## Credits & third-party components
 
